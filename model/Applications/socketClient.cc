@@ -15,7 +15,7 @@ char* socketClientFunction(const char* content) {
 
     // 2. 將 IPv4 位址從文字轉換為二進位格式
     // 我們將連線到本地主機 (127.0.0.1)
-    if (inet_pton(AF_INET, "127.0.0.1", &serv_addr.sin_addr) <= 0) {
+    if (inet_pton(AF_INET, "140.124.71.80", &serv_addr.sin_addr) <= 0) {
         std::cerr << "Invalid address/ Address not supported" << std::endl;
         return "Invalid address/ Address not supported";
     }

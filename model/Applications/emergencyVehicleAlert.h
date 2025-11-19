@@ -38,6 +38,7 @@ class emergencyVehicleAlert : public Application
     void UpdateEmergencyDenm(DEN_ActionID_t actionID);
     void StopApplicationNow ();
     void TriggerEmergencyDenm();
+    nlohmann::json QueryAllVehiclesAndLeaders();
     /**
      * \brief Callback to handle a CAM reception.
      *

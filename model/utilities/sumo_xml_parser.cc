@@ -46,7 +46,6 @@ namespace ns3
 
       xmlXPathFreeObject(xpathObj);
       xmlXPathFreeContext(xpathCtx);
-
       return num_vehicles;
   }
   int XML_rou_count_pedestrians(xmlDocPtr doc)

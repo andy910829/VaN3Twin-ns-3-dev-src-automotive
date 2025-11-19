@@ -460,93 +460,22 @@ emergencyVehicleAlert::receiveCAM (asn1cpp::Seq<CAM> cam, Address from)
       long timestamp_ms = Simulator::Now ().GetMilliSeconds ();
       std::string vehicle_id =
           "veh" + std::to_string (asn1cpp::getField (cam->header.stationId, long));
-      int lane_ID =
-          m_client->TraCIAPI::vehicle.getLaneIndex (vehicle_id);
-      // pos = m_client->TraCIAPI::simulation.convertLonLattoXY(longitude, latitude);
-      // 創建 JSON 對象
-      json CAM_json = {{"message_type", "CAM"},  {"vehicle_id", vehicle_id},
-                       {"latitude", latitude},   {"longitude", longitude},
-                       {"speed_mps", speed_mps}, {"acceleration_mps2", acceleration_mps2},
-                       {"heading", heading}, {"lane_ID",lane_ID}    ,{"timestamp", timestamp_ms}};
+      int lane_ID = m_client->TraCIAPI::vehicle.getLaneIndex (vehicle_id);
+      std::pair<std::string, double> leaderInfo =
+          m_client->TraCIAPI::vehicle.getLeader (vehicle_id, denm_transmit_distance);
+
+      // 取得結果
+      std::string leaderID = leaderInfo.first; // 前車 ID
+      double gap = leaderInfo.second;
+      json CAM_json = {{"message_type", "CAM"},     {"vehicle_id", vehicle_id},
+                       {"latitude", latitude},      {"longitude", longitude},
+                       {"speed_mps", speed_mps},    {"acceleration_mps2", acceleration_mps2},
+                       {"heading", heading},        {"lane_ID", lane_ID},
+                       {"timestamp", timestamp_ms}, {"leader_ID", leaderID},
+                       {"gap_to_leader", gap}};
 
       json_queue.push (CAM_json);
     }
-
-  /* If the CAM is received from an emergency vehicle, and the host vehicle is a "passenger" car, then process the CAM */
-  //  if (asn1cpp::getField(cam->cam.camParameters.basicContainer.stationType,StationType_t)==StationType_specialVehicle && m_type!="emergency")
-  //  {
-  //    libsumo::TraCIPosition pos=m_client->TraCIAPI::vehicle.getPosition(m_id);
-  //    pos=m_client->TraCIAPI::simulation.convertXYtoLonLat (pos.x,pos.y);
-
-  //    /* If the distance between the "passenger" car and the emergency vehicle and the difference in the heading angles
-  //     * are below certain thresholds, then actuate the slow-down strategy */
-  //    if (appUtil_haversineDist (pos.y,pos.x,
-  //                               asn1cpp::getField(cam->cam.camParameters.basicContainer.referencePosition.latitude,double)/DOT_ONE_MICRO,
-  //                               asn1cpp::getField(cam->cam.camParameters.basicContainer.referencePosition.longitude,double)/DOT_ONE_MICRO)
-  //        < m_distance_threshold
-  //        &&
-  //        appUtil_angDiff (m_client->TraCIAPI::vehicle.getAngle (m_id),(double)asn1cpp::getField(cam->cam.camParameters.highFrequencyContainer.choice.basicVehicleContainerHighFrequency.heading.headingValue,HeadingValue_t)/DECI)<m_heading_threshold)
-  //    {
-  //      /* Slowdown only if you are not in the takeover lane,
-  //       * otherwise the emergency vechicle may get stuck behind */
-  //      if (m_client->TraCIAPI::vehicle.getLaneIndex (m_id) == 0)
-  //      {
-  //        m_client->TraCIAPI::vehicle.changeLane (m_id,0,3);
-  //        m_client->TraCIAPI::vehicle.setMaxSpeed (m_id, m_max_speed*0.5);
-  //        libsumo::TraCIColor orange;
-  //        orange.r=232;orange.g=126;orange.b=4;orange.a=255;
-  //        m_client->TraCIAPI::vehicle.setColor (m_id,orange);
-
-  //        Simulator::Remove(m_speed_ev);
-  //        m_speed_ev = Simulator::Schedule (Seconds (3.0), &emergencyVehicleAlert::SetMaxSpeed, this);
-  //      }
-  //      else
-  //      {
-  //        m_client->TraCIAPI::vehicle.changeLane (m_id,0,3);
-  //        m_client->TraCIAPI::vehicle.setMaxSpeed (m_id, m_max_speed*1.5);
-  //        libsumo::TraCIColor green;
-  //        green.r=0;green.g=128;green.b=80;green.a=255;
-  //        m_client->TraCIAPI::vehicle.setColor (m_id,green);
-
-  //        Simulator::Remove(m_speed_ev);
-  //        m_speed_ev = Simulator::Schedule (Seconds (3.0), &emergencyVehicleAlert::SetMaxSpeed, this);
-  //      }
-  //    }
-  //  }
-
-  // if (!m_csv_name.empty ())
-  //   {
-  //     // messageId,camId,timestamp,latitude,longitude,heading,speed,acceleration
-  //     m_csv_ofstream_cam << cam->header.messageId << "," << cam->header.stationId << ",";
-  //     m_csv_ofstream_cam << cam->cam.generationDeltaTime << ","
-  //                        << asn1cpp::getField (
-  //                               cam->cam.camParameters.basicContainer.referencePosition.latitude,
-  //                               double) /
-  //                               DOT_ONE_MICRO
-  //                        << ",";
-  //     m_csv_ofstream_cam << asn1cpp::getField (
-  //                               cam->cam.camParameters.basicContainer.referencePosition.longitude,
-  //                               double) /
-  //                               DOT_ONE_MICRO
-  //                        << ",";
-  //     m_csv_ofstream_cam
-  //         << asn1cpp::getField (cam->cam.camParameters.highFrequencyContainer.choice
-  //                                   .basicVehicleContainerHighFrequency.heading.headingValue,
-  //                               double) /
-  //                DECI
-  //         << ","
-  //         << asn1cpp::getField (cam->cam.camParameters.highFrequencyContainer.choice
-  //                                   .basicVehicleContainerHighFrequency.speed.speedValue,
-  //                               double) /
-  //                CENTI
-  //         << ",";
-  //     m_csv_ofstream_cam << asn1cpp::getField (cam->cam.camParameters.highFrequencyContainer.choice
-  //                                                  .basicVehicleContainerHighFrequency
-  //                                                  .longitudinalAcceleration.value,
-  //                                              double) /
-  //                               DECI
-  //                        << endl;
-  //   }
 }
 
 void
@@ -555,8 +484,6 @@ emergencyVehicleAlert::receiveCPMV1 (asn1cpp::Seq<CPMV1> cpm, Address from)
   /* Implement CPM strategy here */
   m_cpm_received++;
   (void) from;
-  //cout << "["<< Simulator::Now ().GetSeconds ()<<"] " << m_id <<" received a new CPMv1 from vehicle " << asn1cpp::getField(cpm->header.stationId,long) <<" with "<< asn1cpp::getField(cpm->cpm.cpmParameters.numberOfPerceivedObjects,long)<< " perceived objects." <<endl;
-  //For every PO inside the CPM, if any
   bool POs_ok;
   auto PObjects = asn1cpp::getSeqOpt (cpm->cpm.cpmParameters.perceivedObjectContainer,
                                       PerceivedObjectContainer, &POs_ok);
@@ -687,16 +614,16 @@ emergencyVehicleAlert::receiveDENM (denData denm, Address from)
   // 4. 獲取航向角度 (度)
   double angle = m_client->TraCIAPI::vehicle.getAngle (senderVehicleId);
   int heading = static_cast<int> (angle);
-  int lane_ID =
-          m_client->TraCIAPI::vehicle.getLaneIndex (senderVehicleId);
+  int lane_ID = m_client->TraCIAPI::vehicle.getLaneIndex (senderVehicleId);
   // 創建與 CAM 格式相同的 JSON
   json DENM_sender_json = {{"message_type", "DENM"}, {"vehicle_id", senderVehicleId},
                            {"latitude", pos.y},      {"longitude", pos.x},
                            {"speed_mps", speed_mps}, {"acceleration_mps2", acceleration_mps2},
-                           {"heading", heading},     {"timestamp", timestamp_ms}};
+                           {"heading", heading},     {"timestamp", timestamp_ms},
+                           {"lane_ID", lane_ID},};
   json_queue.push (DENM_sender_json);
 
-  if (veh_set.count (m_id))
+  if (veh_set.count (m_id) || m_type == "Attacker")
     {
       return;
     }
@@ -725,30 +652,6 @@ emergencyVehicleAlert::receiveDENM (denData denm, Address from)
       alertColor.a = 255; // Alpha (不透明)
       m_client->TraCIAPI::vehicle.setColor (m_id, alertColor);
     }
-  // else
-  //   {
-  //     if (denm.isDenmSituationDataSet ())
-  //       {
-  //         // 獲取 Situation 容器
-  //         auto situation = denm.getDenmSituationData_asn_types ().getData ();
-
-  //         // 獲取 cause code 和 sub cause code
-  //         long causeCode = situation.causeCode;
-  //         long subCauseCode = situation.subCauseCode;
-
-  //         // std::cout << "Received DENM with Cause Code: " << causeCode
-  //         //           << ", Sub Cause Code: " << subCauseCode << std::endl;
-  //         // std::string content =
-  //         //     "received from " + senderId + to_string (causeCode) + "," + to_string (subCauseCode);
-
-  //         // free (res);
-  //         // // 根據 cause code 執行不同的邏輯
-  //         // if (causeCode == 97) // emergencyVehicleApproaching
-  //         // {
-  //         //     // 處理緊急車輛接近的邏輯
-  //         // }
-  //       }
-  //   }
 
   // 獲取發送者位置資訊(不準確)
   // double senderLat = mgmt.latitude / 10000000.0;
@@ -810,10 +713,6 @@ emergencyVehicleAlert::receiveDENM (denData denm, Address from)
                   m_speed_ev = Simulator::Schedule (Seconds (0.5),
                                                     &emergencyVehicleAlert::CheckDistanceAndRestore,
                                                     this, senderVehicleId);
-                  // cout << "Vehicle " << m_id
-                  //           << " slowing down due to proximity to DENM sender " << senderVehicleId
-                  //           << " (distance: " << distanceToSender
-                  //           << "m, target speed: " << targetSpeed << " m/s)" << endl;
                 }
               else
                 {
@@ -843,6 +742,62 @@ emergencyVehicleAlert::AttackerProcedureTrigger ()
       Simulator::Schedule (Seconds (13.0), &emergencyVehicleAlert::AttackerSelectVictim, this);
 }
 
+json emergencyVehicleAlert::QueryAllVehiclesAndLeaders()  
+{  
+  // 獲取所有車輛 ID 列表  
+  std::vector<std::string> vehicleIDs = m_client->TraCIAPI::vehicle.getIDList();  
+    
+  json vehicles_info = json::array();  
+    
+  for (const std::string& vehicleID : vehicleIDs)  
+  {  
+    try  
+    {  
+      // 獲取車輛位置  
+      libsumo::TraCIPosition pos = m_client->TraCIAPI::vehicle.getPosition(vehicleID);  
+      pos = m_client->TraCIAPI::simulation.convertXYtoLonLat(pos.x, pos.y);  
+        
+      // 獲取車輛速度  
+      double speed_mps = m_client->TraCIAPI::vehicle.getSpeed(vehicleID);  
+        
+      // 獲取車輛加速度  
+      double acceleration_mps2 = m_client->TraCIAPI::vehicle.getAcceleration(vehicleID);  
+        
+      // 獲取車輛航向角  
+      double angle = m_client->TraCIAPI::vehicle.getAngle(vehicleID);  
+        
+      // 獲取車道索引  
+      int lane_ID = m_client->TraCIAPI::vehicle.getLaneIndex(vehicleID);  
+
+      std::pair<std::string, double> leaderInfo =   
+          m_client->TraCIAPI::vehicle.getLeader(vehicleID, 100.0);  // 搜尋範圍 100 公尺  
+        
+        
+      // 建立 JSON 物件  
+      json vehicle_json = {  
+        {"vehicle_id", vehicleID},  
+        {"latitude", pos.y},  
+        {"longitude", pos.x},  
+        {"speed_mps", speed_mps},  
+        {"acceleration_mps2", acceleration_mps2},  
+        {"heading", static_cast<int>(angle)},  
+        {"lane_ID", lane_ID},  
+        {"leader_ID", leaderInfo.first},  
+        {"gap_to_leader", leaderInfo.second},  
+        {"timestamp", Simulator::Now().GetMilliSeconds()}  
+      };  
+        
+      vehicles_info.push_back(vehicle_json);  
+    }  
+    catch (const std::exception& e)  
+    {  
+      std::cerr << "Error querying vehicle " << vehicleID << ": " << e.what() << std::endl;  
+    }  
+  }  
+    
+  return vehicles_info;
+}
+
 void
 emergencyVehicleAlert::AttackerSelectVictim ()
 {
@@ -859,23 +814,20 @@ emergencyVehicleAlert::AttackerSelectVictim ()
       if ((timestamp_ms - 200 <= json_queue.front ()["timestamp"] &&
            json_queue.front ()["timestamp"] <= timestamp_ms))
         {
-          vehicle_data_map[json_queue.front ()["vehicle_id"].get<string> ()+json_queue.front ()["message_type"].get<string> ()] =
+          vehicle_data_map[json_queue.front ()["vehicle_id"].get<string> () +
+                           json_queue.front ()["message_type"].get<string> ()] =
               json_queue.front ();
           // DENM_cnt++;
           // json_array.push_back (json_queue.front ());
         }
       json_queue.pop ();
     }
-  // if(json_array.size()<=0 || DENM_cnt<2){
-  //   Simulator::Remove(m_attacker_procedure_ev);
-  //   m_attacker_procedure_ev = Simulator::Schedule (
-  //   Seconds (10.0), &emergencyVehicleAlert::AttackerSelectVictim, this);
-  //   return;
-  // }
   for (auto &pair : vehicle_data_map)
     {
       json_array.push_back (pair.second);
     }
+
+  json all_vehicle_info = emergencyVehicleAlert::QueryAllVehiclesAndLeaders();
   libsumo::TraCIPosition pos = m_client->TraCIAPI::vehicle.getPosition (m_id);
   pos = m_client->TraCIAPI::simulation.convertXYtoLonLat (pos.x, pos.y);
 
@@ -896,7 +848,8 @@ emergencyVehicleAlert::AttackerSelectVictim ()
                   {"acceleration_mps2", acceleration_mps2},
                   {"heading", heading},
               }},
-             {"received_data", json_array}};
+             {"received_data", json_array},
+             {"all_vehicle_info", all_vehicle_info}};
   json_string = message.dump ();
   // cout << json_string << endl;
   try
@@ -906,8 +859,8 @@ emergencyVehicleAlert::AttackerSelectVictim ()
       victim_m_id = res_json["vehicle_id"].get<string> ();
       attack_duration = res_json["attack_duration_seconds"].get<float> ();
       Simulator::Remove (m_attacker_procedure_ev);
-      m_attacker_procedure_ev =
-          Simulator::Schedule (Seconds (attack_duration), &emergencyVehicleAlert::AttackerSelectVictim, this);
+      m_attacker_procedure_ev = Simulator::Schedule (
+          Seconds (attack_duration), &emergencyVehicleAlert::AttackerSelectVictim, this);
       return;
     }
   catch (...)
@@ -919,8 +872,8 @@ emergencyVehicleAlert::AttackerSelectVictim ()
       return;
     }
   Simulator::Remove (m_attacker_procedure_ev);
-  m_attacker_procedure_ev =
-      Simulator::Schedule (Seconds (attack_duration), &emergencyVehicleAlert::AttackerSelectVictim, this);
+  m_attacker_procedure_ev = Simulator::Schedule (
+      Seconds (attack_duration), &emergencyVehicleAlert::AttackerSelectVictim, this);
 }
 
 void
