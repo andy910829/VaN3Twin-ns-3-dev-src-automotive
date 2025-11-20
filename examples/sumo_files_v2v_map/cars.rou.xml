@@ -1,5 +1,5 @@
 <routes>
-  <!-- 原始路線定義，保持不變 -->
+  <!-- 預設路由，保持不變 -->
   <route id="0" edges="ne_to_nw nw_to_sw sw_to_se se_to_ne"/>
   <route id="1" edges="se_to_sw sw_to_nw nw_to_ne ne_to_se"/>
   <route id="2" edges="nw_to_sw sw_to_se se_to_ne ne_to_nw"/>
@@ -7,47 +7,70 @@
   <route id="4" edges="sw_to_se se_to_ne ne_to_nw nw_to_sw"/>
   <route id="5" edges="nw_to_ne ne_to_se se_to_sw sw_to_nw"/>
 
-  <!-- 原始車輛類型定義，保持不變。
-       Car5 的 maxSpeed 較高，適合攻擊車輛追上目標。
-       Car1 的 maxSpeed 較低，適合受影響車輛，使其緊急煞車效果更明顯。 -->
-  <vType accel="5" decel="7.5" emergencyDecel="10" minGap="1.0" id="Car1" maxSpeed="5.55" laneChangeModel="LC2013" lcStrategic="-1" lcCooperative="-1" lcSpeedGain="0" lcKeepRight="0" />
-  <vType accel="4" decel="7.5" emergencyDecel="7" minGap="1.0" id="Car2" maxSpeed="6.9" laneChangeModel="LC2013" lcStrategic="-1" lcCooperative="-1" lcSpeedGain="0" lcKeepRight="0"/>
-  <vType accel="3" decel="7.5" emergencyDecel="10" minGap="1.0" id="Car3" maxSpeed="8.33" laneChangeModel="LC2013" lcStrategic="-1" lcCooperative="-1" lcSpeedGain="0" lcKeepRight="0"/>
-  <vType accel="6" decel="7.5" emergencyDecel="10" minGap="1.0" id="Car4" maxSpeed="9.72" laneChangeModel="LC2013" lcStrategic="-1" lcCooperative="-1" lcSpeedGain="0" lcKeepRight="0"/>
-  <vType accel="4" decel="7.5" emergencyDecel="10" minGap="1.0" id="Car5" maxSpeed="11.11" laneChangeModel="LC2013" lcStrategic="-1" lcCooperative="-1" lcSpeedGain="0" lcKeepRight="0"/>
-  <vType accel="7" decel="7.5" emergencyDecel="10" minGap="1.0" id="Car6" maxSpeed="12.5" laneChangeModel="LC2013" lcStrategic="-1" lcCooperative="-1" lcSpeedGain="0" lcKeepRight="0"/>
-  <vType accel="4" decel="7.5" emergencyDecel="10" minGap="1.0" id="Car7" maxSpeed="13.89" laneChangeModel="LC2013" lcStrategic="-1" lcCooperative="-1" lcSpeedGain="0" lcKeepRight="0"/>
-  <vType accel="4" decel="7.5" emergencyDecel="10" minGap="1.0" id="Car8" maxSpeed="15.27" laneChangeModel="LC2013" lcStrategic="-1" lcCooperative="-1" lcSpeedGain="0" lcKeepRight="0"/>
-  <vType accel="4" decel="7.5" emergencyDecel="10" minGap="1.0" id="Car9" maxSpeed="16.66" laneChangeModel="LC2013" lcStrategic="-1" lcCooperative="-1" lcSpeedGain="0" lcKeepRight="0"/>
+  <!--
+    vType 定義：
+    所有 emergencyDecel 都已調整為 9.0，確保其大於 decel (7.5)，符合物理現實。
+  -->
+  <vType accel="5" decel="7.5" emergencyDecel="9.0" minGap="1.0" id="Car1" maxSpeed="5.55" laneChangeModel="LC2013" lcStrategic="-1" lcCooperative="-1" lcSpeedGain="0" lcKeepRight="0" />
+  <vType accel="4" decel="7.5" emergencyDecel="9.0" minGap="1.0" id="Car2" maxSpeed="6.9" laneChangeModel="LC2013" lcStrategic="-1" lcCooperative="-1" lcSpeedGain="0" lcKeepRight="0"/>
+  <vType accel="3" decel="7.5" emergencyDecel="9.0" minGap="1.0" id="Car3" maxSpeed="8.33" laneChangeModel="LC2013" lcStrategic="-1" lcCooperative="-1" lcSpeedGain="0" lcKeepRight="0"/>
+  <vType accel="6" decel="7.5" emergencyDecel="9.0" minGap="1.0" id="Car4" maxSpeed="9.72" laneChangeModel="LC2013" lcStrategic="-1" lcCooperative="-1" lcSpeedGain="0" lcKeepRight="0"/>
+  <vType accel="4" decel="7.5" emergencyDecel="9.0" minGap="1.0" id="Car5" maxSpeed="11.11" laneChangeModel="LC2013" lcStrategic="-1" lcCooperative="-1" lcSpeedGain="0" lcKeepRight="0"/>
+  <vType accel="7" decel="7.5" emergencyDecel="9.0" minGap="1.0" id="Car6" maxSpeed="12.5" laneChangeModel="LC2013" lcStrategic="-1" lcCooperative="-1" lcSpeedGain="0" lcKeepRight="0"/>
+  <vType accel="4" decel="7.5" emergencyDecel="9.0" minGap="1.0" id="Car7" maxSpeed="13.89" laneChangeModel="LC2013" lcStrategic="-1" lcCooperative="-1" lcSpeedGain="0" lcKeepRight="0"/>
+  <vType accel="4" decel="7.5" emergencyDecel="9.0" minGap="1.0" id="Car8" maxSpeed="15.27" laneChangeModel="LC2013" lcStrategic="-1" lcCooperative="-1" lcSpeedGain="0" lcKeepRight="0"/>
+  <vType accel="4" decel="7.5" emergencyDecel="9.0" minGap="1.0" id="Car9" maxSpeed="16.66" laneChangeModel="LC2013" lcStrategic="-1" lcCooperative="-1" lcSpeedGain="0" lcKeepRight="0"/>
 
-  <!-- 核心場景車輛設定 -->
-  
-  <!-- 緊急車輛 1: veh1，作為主要的緊急訊息發送者，在 lane 0 出發 -->
-  <vehicle id="veh1" type="Car2" depart="1.0" route="0" departLane="0" /> 
-  
-  <!-- 攻擊車輛: veh4，在 veh1 之後出發，但速度較快，將會追上 veh1，
-       並在 lane 0 上形成干擾區，阻擋 veh1 的訊息傳給後方 veh10。 -->
-  <vehicle id="veh4" type="Car5" depart="3.0" route="0" departLane="0" /> 
-  
-  <!-- 緊急車輛 2: veh7，在 lane 2 出發，作為另一個訊息源。
-       如果攻擊範圍夠大，其訊息也可能受到 veh4 的影響。 -->
-  <vehicle id="veh7" type="Car3" depart="2.0" route="0" departLane="2" /> 
-  
-  <!-- 受攻擊影響車輛: veh10，在 veh4 就位後出發，追蹤 veh1。
-       由於 veh4 的干擾，veh10 應該會延遲接收緊急訊息，導致急促煞車。 -->
-  <vehicle id="veh10" type="Car1" depart="10.0" route="0" departLane="0" /> 
+  <!--
+    核心場景車輛佈局：
+    veh1 (緊急) -> veh7 (緊急) -> veh4 (攻擊) -> veh10 (目標跟隨車輛)
+    這將使得 veh4 位於兩輛緊急車輛和 veh10 之間，有效地阻斷通訊。
+    注意：所有車輛都按照 depart 時間嚴格排序。
+  -->
 
-  <!-- 其他背景車輛，增加場景的真實感和複雜性 -->
-  <vehicle id="veh2" type="Car6" depart="0.5" route="1" departLane="0" />
-  <vehicle id="veh3" type="Car4" depart="1.2" route="2" departLane="0" />
-  <vehicle id="veh5" type="Car7" depart="4.0" route="1" departLane="1" />
-  <vehicle id="veh6" type="Car8" depart="5.5" route="3" departLane="0" />
-  <vehicle id="veh8" type="Car9" depart="6.0" route="0" departLane="1" /> <!-- 不在主要攻擊車道，但會經過附近 -->
-  <vehicle id="veh9" type="Car2" depart="7.5" route="2" departLane="1" />
-  <vehicle id="veh11" type="Car1" depart="11.0" route="0" departLane="2" /> <!-- 追蹤 veh7 的車輛，可能受到攻擊影響 -->
-  <vehicle id="veh12" type="Car3" depart="9.0" route="4" departLane="0" />
-  <vehicle id="veh13" type="Car6" depart="12.0" route="0" departLane="1" />
-  <vehicle id="veh14" type="Car7" depart="13.0" route="5" departLane="0" />
-  <vehicle id="veh15" type="Car8" depart="14.0" route="0" departLane="2" />
+  <!-- 背景車輛1 (route 1) -->
+  <vehicle id="veh2" type="Car1" depart="0.5" route="1" departLane="0" />
+
+  <!-- 緊急車輛1 (veh1) - 以中等速度行駛在主路線上 -->
+  <vehicle id="veh1" type="Car3" depart="1.0" route="0" departLane="0" />
+
+  <!-- 背景車輛2 (route 2) -->
+  <vehicle id="veh3" type="Car2" depart="1.2" route="2" departLane="0" />
+
+  <!-- 緊急車輛2 (veh7) - 跟隨 veh1，速度與 veh1 相同 -->
+  <vehicle id="veh7" type="Car3" depart="1.5" route="0" departLane="0" />
+
+  <!-- 攻擊車輛 (veh4) - 跟隨 veh7，速度與緊急車輛相同，位於阻塞通訊的關鍵位置 -->
+  <vehicle id="veh4" type="Car3" depart="2.0" route="0" departLane="0" />
+
+  <!-- 背景車輛3 (route 1) -->
+  <vehicle id="veh5" type="Car5" depart="2.5" route="1" departLane="1" />
+
+  <!-- 背景車輛4 (route 3) -->
+  <vehicle id="veh6" type="Car6" depart="3.0" route="3" departLane="0" />
+
+  <!-- 背景車輛5 (route 2) -->
+  <vehicle id="veh8" type="Car8" depart="3.5" route="2" departLane="1" />
+
+  <!-- 背景車輛6 (route 4) -->
+  <vehicle id="veh9" type="Car7" depart="4.0" route="4" departLane="0" />
+
+  <!-- 背景車輛7 (route 0, 但在不同車道，不影響主線場景) -->
+  <vehicle id="veh11" type="Car6" depart="4.5" route="0" departLane="1" />
+
+  <!-- 目標跟隨車輛 (veh10) - 速度快，將追上 veh1, veh7, veh4 組成的車隊 -->
+  <vehicle id="veh10" type="Car9" depart="5.0" route="0" departLane="0" />
+
+  <!-- 背景車輛8 (route 5) -->
+  <vehicle id="veh12" type="Car5" depart="5.2" route="5" departLane="0" />
+
+  <!-- 背景車輛9 (route 0, 但在不同車道，不影響主線場景) -->
+  <vehicle id="veh13" type="Car4" depart="5.8" route="0" departLane="2" />
+
+  <!-- 背景車輛10 (route 1) -->
+  <vehicle id="veh14" type="Car1" depart="6.0" route="1" departLane="0" />
+
+  <!-- 背景車輛11 (route 2) -->
+  <vehicle id="veh15" type="Car2" depart="6.5" route="2" departLane="0" />
 
 </routes>

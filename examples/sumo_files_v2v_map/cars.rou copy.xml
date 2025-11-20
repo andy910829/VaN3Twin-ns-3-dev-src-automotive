@@ -32,44 +32,44 @@
 
   <vehicle id="veh1" type="Car2" depart="0.5" route="0" departLane="0" > <!-- emergency veh -->
   </vehicle>
-  <!-- <vehicle id="veh2" type="Car1" depart="0.1" route="2" departLane="0" color="0,255,255">
+  <vehicle id="veh2" type="Car1" depart="0.1" route="2" departLane="0" >
   </vehicle>
-  <vehicle id="veh3" type="Car2" depart="0.1" route="1" departLane="0" color="0,255,255">
-  </vehicle> -->
+  <vehicle id="veh3" type="Car2" depart="0.1" route="1" departLane="0" >
+  </vehicle>
   <vehicle id="veh4" type="Car2" depart="0.5" route="0" departLane="1" >
   </vehicle>
-  <!-- <vehicle id="veh5" type="Car5" depart="0.1" route="4" departLane="0" color="0,255,255">
+  <vehicle id="veh5" type="Car5" depart="0.1" route="4" departLane="0" >
   </vehicle> 
-  <vehicle id="veh6" type="Car3" depart="0.1" route="5" departLane="0" color="0,255,255">
-  </vehicle> -->
+  <vehicle id="veh6" type="Car3" depart="0.1" route="5" departLane="0" >
+  </vehicle>
   <vehicle id="veh7" type="Car3" depart="0.5" route="0" departLane="2" > <!-- emergency veh -->
   </vehicle>
-  <!-- <vehicle id="veh8" type="Car9" depart="0.8" route="1" departLane="0" color="0,255,255">
+  <vehicle id="veh8" type="Car9" depart="0.8" route="1" departLane="0" >
   </vehicle>
-  <vehicle id="veh9" type="Car2" depart="0.8" route="2" departLane="0" color="0,255,255">
+  <vehicle id="veh9" type="Car2" depart="0.8" route="2" departLane="0" >
   </vehicle>
-  <vehicle id="veh10" type="Car2" depart="0.8" route="3" departLane="0" color="0,255,255">
-  </vehicle> -->
+  <vehicle id="veh10" type="Car2" depart="0.8" route="3" departLane="0" >
+  </vehicle>
   <vehicle id="veh11" type="Car6" depart="2.0" route="0" departLane="2" >
   </vehicle>
-  <!-- <vehicle id="veh12" type="Car2" depart="0.8" route="5" departLane="0" color="0,255,255">
-  </vehicle> -->
+  <vehicle id="veh12" type="Car2" depart="0.8" route="5" departLane="0" >
+  </vehicle>
   <vehicle id="veh13" type="Car4" depart="2.0" route="0" departLane="0" >
   </vehicle>
-  <!-- <vehicle id="veh14" type="Car5" depart="1.5" route="0" departLane="2" >
-  </vehicle> -->
-  <!-- <vehicle id="veh15" type="Car7" depart="1.5" route="2" departLane="0" color="0,255,255">
+  <vehicle id="veh14" type="Car5" depart="1.5" route="0" departLane="2" >
+  </vehicle> 
+  <vehicle id="veh15" type="Car7" depart="1.5" route="2" departLane="0" >
   </vehicle>
-  <vehicle id="veh16" type="Car9" depart="1.5" route="3" departLane="0" color="0,255,255">
+  <vehicle id="veh16" type="Car9" depart="1.5" route="3" departLane="0" >
   </vehicle>
-  <vehicle id="veh17" type="Car5" depart="1.5" route="4" departLane="0" color="0,255,255">
+  <vehicle id="veh17" type="Car5" depart="1.5" route="4" departLane="0" >
   </vehicle>
-  <vehicle id="veh18" type="Car7" depart="1.5" route="5" departLane="0" color="0,255,255">
-  </vehicle> -->
-  <!-- <vehicle id="veh19" type="Car5" depart="1.5" route="0" departLane="0" >
-  </vehicle> -->
-  <!-- <vehicle id="veh20" type="Car2" depart="1.8" route="1" departLane="0" color="0,255,255">
-  </vehicle> -->
-  <!-- <vehicle id="veh21" type="Car10" depart="0.1" route="0">
-  </vehicle> -->
+  <vehicle id="veh18" type="Car7" depart="1.5" route="5" departLane="0" >
+  </vehicle> 
+  <vehicle id="veh19" type="Car5" depart="1.5" route="0" departLane="0" >
+  </vehicle>
+  <vehicle id="veh20" type="Car2" depart="1.8" route="1" departLane="0" >
+  </vehicle>
+  <vehicle id="veh21" type="Car10" depart="0.1" route="0">
+  </vehicle>
 </routes>

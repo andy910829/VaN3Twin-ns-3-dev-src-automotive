@@ -277,7 +277,6 @@ main (int argc, char *argv[])
       NS_FATAL_ERROR("Error: unable to parse the specified XML file: "<<path);
     }
   numberOfNodes = XML_rou_count_vehicles(rou_xml_file);
-
   xmlFreeDoc(rou_xml_file);
   xmlCleanupParser();
 
@@ -641,6 +640,7 @@ main (int argc, char *argv[])
   sumoClient->SetAttribute ("SumoLogFile", BooleanValue (false));
   sumoClient->SetAttribute ("SumoStepLog", BooleanValue (false));
   sumoClient->SetAttribute ("SumoSeed", IntegerValue (10));
+  sumoClient->SetAttribute ("SumoLogFile", BooleanValue (true));
 
   std::string sumo_additional_options = "--verbose true";
 
