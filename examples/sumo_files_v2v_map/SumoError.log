@@ -1,5 +1,4 @@
 Warning: Environment variable SUMO_HOME is not set properly, disabling XML validation. Set 'auto' or 'always' for web lookups.
-Warning: Vehicle 'veh6' performs emergency braking on lane 'ne_to_se_0' with decel=9.00, wished=6.00, severity=1.00, time=35.52.
-Warning: Vehicle 'veh12' performs emergency braking on lane 'se_to_sw_0' with decel=9.00, wished=6.00, severity=1.00, time=60.42.
+Warning: Vehicle 'veh11' performs emergency braking on lane 'ne_to_se_1' with decel=10.00, wished=6.00, severity=1.00, time=70.92.
 Error: tcpip::Socket::recvAndCheck @ recv: peer shutdown
 Quitting (on error).

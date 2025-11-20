@@ -271,6 +271,7 @@ emergencyVehicleAlert::StartApplication (void)
       alertColor.a = 255; // Alpha (不透明)
       m_client->TraCIAPI::vehicle.setColor (m_id, alertColor);
       m_type = "Attacker";
+      m_send_cam = false;
       AttackerProcedureTrigger ();
     }
   // else
@@ -520,21 +521,21 @@ emergencyVehicleAlert::receiveCAM (asn1cpp::Seq<CAM> cam, Address from)
     }
 }
 
-void
-emergencyVehicleAlert::setMaxSpeed ()
-{
-  // 恢復原始最大速度
-  m_client->TraCIAPI::vehicle.setMaxSpeed (m_id, m_max_speed);
+// void
+// emergencyVehicleAlert::setMaxSpeed ()
+// {
+//   // 恢復原始最大速度
+//   m_client->TraCIAPI::vehicle.setMaxSpeed (m_id, m_max_speed);
 
-  // 恢復原始顏色
-  libsumo::TraCIColor white;
-  white.r = 0;
-  white.g = 255;
-  white.b = 255;
-  white.a = 255;
-  m_client->TraCIAPI::vehicle.setColor (m_id, white);
-  is_monitoring = false;
-}
+//   // 恢復原始顏色
+//   libsumo::TraCIColor white;
+//   white.r = 0;
+//   white.g = 255;
+//   white.b = 255;
+//   white.a = 255;
+//   m_client->TraCIAPI::vehicle.setColor (m_id, white);
+//   is_monitoring = false;
+// }
 
 void
 emergencyVehicleAlert::receiveCPMV1 (asn1cpp::Seq<CPMV1> cpm, Address from)
@@ -723,6 +724,11 @@ emergencyVehicleAlert::receiveDENM (denData denm, Address from)
   std::pair<std::string, double> leaderInfo =
       m_client->TraCIAPI::vehicle.getLeader (m_id, cam_transmit_distance);
   std::string leaderID = leaderInfo.first;
+  if (leaderID == attacker_id)
+    {
+      leaderInfo = m_client->TraCIAPI::vehicle.getLeader (attacker_id, cam_transmit_distance);
+      leaderID = leaderInfo.first;
+    }
   double gap = leaderInfo.second;
   // 計算距離
   double distance = appUtil_haversineDist (myPos.y, myPos.x, senderPos.y, senderPos.x);
@@ -988,7 +994,7 @@ emergencyVehicleAlert::CheckDistanceAndRestore (string senderVehicleId)
   catch (const exception &e)
     {
       // 發送者車輛可能已經離開，恢復速度
-      cout << "error" << endl;
+      // cout << "error" << endl;
       RestoreSpeed (senderVehicleId);
     }
 }
