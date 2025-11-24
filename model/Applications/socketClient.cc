@@ -1,7 +1,7 @@
 #include "socketClient.h"
 
 char* socketClientFunction(const char* content) {
-    std::cout << "Socket Client Function Called with content: " << content << std::endl;
+    // std::cout << "Socket Client Function Called with content: " << content << std::endl;
     // 1. 建立 Socket
     int sock = 0;
     if ((sock = socket(AF_INET, SOCK_STREAM, 0)) < 0) {

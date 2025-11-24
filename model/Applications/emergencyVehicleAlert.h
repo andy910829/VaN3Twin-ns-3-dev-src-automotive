@@ -38,6 +38,7 @@ class emergencyVehicleAlert : public Application
     void UpdateEmergencyDenm(DEN_ActionID_t actionID);
     void StopApplicationNow ();
     void TriggerEmergencyDenm();
+    void vehicleTypeInit();
     // void setMaxSpeed ();
     nlohmann::json QueryAllVehiclesAndLeaders();
     /**

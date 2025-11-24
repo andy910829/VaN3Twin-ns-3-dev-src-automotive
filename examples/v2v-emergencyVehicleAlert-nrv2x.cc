@@ -103,7 +103,7 @@ main (int argc, char *argv[])
   int numberOfNodes;
   uint32_t nodeCounter = 0;
 
-  double penetrationRate = 0.7;
+  double penetrationRate = 1.0;
 
   xmlDocPtr rou_xml_file;
   double m_baseline_prr = 150.0;

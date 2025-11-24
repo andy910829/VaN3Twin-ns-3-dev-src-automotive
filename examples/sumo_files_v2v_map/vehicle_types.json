@@ -1,0 +1,15 @@
+{
+  "emergency_vehicles": [
+    {
+      "id": "veh0",
+      "value": "High",
+      "reason": "Followed by a dense, high-speed, and aggressive platoon of 5 cars designed to close in rapidly, creating a high potential for a multi-car pile-up."
+    },
+    {
+      "id": "veh1",
+      "value": "Low",
+      "reason": "Followed by a sparse flow of 2 conservative cars with larger following distances, significantly reducing the immediate risk of a chain-reaction collision."
+    }
+  ],
+  "attacker_id": "veh2"
+}

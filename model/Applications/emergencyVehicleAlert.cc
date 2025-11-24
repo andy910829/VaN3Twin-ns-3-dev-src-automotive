@@ -36,11 +36,11 @@ using namespace std;
 const double distance_offset = 5.06614e+06;
 const int denm_transmit_distance = 50;
 const int cam_transmit_distance = 50;
-const string attacker_id = "veh4";
 const double attack_range = 50;
 
+string attacker_id = "";
 string victim_m_id;
-std::unordered_set<std::string> veh_set = {"veh1", "veh7"};
+std::unordered_set<std::string> veh_set = {};
 using json = nlohmann::json;
 
 namespace ns3 {
@@ -162,6 +162,30 @@ emergencyVehicleAlert::DoDispose (void)
   Application::DoDispose ();
 }
 
+void emergencyVehicleAlert::vehicleTypeInit(){
+  std::ifstream f("/home/mcalab/Desktop/Andy/VaN3Twin/ns-3-dev/src/automotive/examples/sumo_files_v2v_map/vehicle_types.json");
+    
+  // 檢查檔案是否成功開啟
+  if (!f.is_open()) {
+      std::cerr << "無法開啟檔案 data.json" << std::endl;
+      return;
+  }
+
+  // 2. 解析 JSON
+  json data;
+  try {
+      data = json::parse(f);
+  } catch (json::parse_error& e) {
+      std::cerr << "JSON 解析錯誤: " << e.what() << std::endl;
+      return ;
+  }
+  attacker_id = data["attacker_id"];
+  for (const auto& ev : data["emergency_vehicles"]) {
+      std::string id = ev["id"];
+      veh_set.insert(id);
+  }
+}
+
 void
 emergencyVehicleAlert::StartApplication (void)
 {
@@ -174,6 +198,7 @@ emergencyVehicleAlert::StartApplication (void)
      */
 
   /* Save the vehicles informations */
+  vehicleTypeInit();
   m_id = m_client->GetVehicleId (this->GetNode ());
   m_type = m_client->TraCIAPI::vehicle.getVehicleClass (m_id);
   m_max_speed = m_client->TraCIAPI::vehicle.getMaxSpeed (m_id);
@@ -256,10 +281,6 @@ emergencyVehicleAlert::StartApplication (void)
     }
 
   /* Set Station Type in DENBasicService */
-  libsumo::TraCIColor vehcolor = m_client->TraCIAPI::vehicle.getColor (m_id);
-  std::cout << m_id << " Color(R,G,B,A): (" << static_cast<int> (vehcolor.r) << ", "
-            << static_cast<int> (vehcolor.g) << ", " << static_cast<int> (vehcolor.b) << ", "
-            << static_cast<int> (vehcolor.a) << ")" << std::endl;
   StationType_t stationtype;
   stationtype = StationType_passengerCar;
   if (m_id == attacker_id)
@@ -354,14 +375,12 @@ emergencyVehicleAlert::StartApplication (void)
 
       Ptr<UniformRandomVariable> desync_rvar = CreateObject<UniformRandomVariable> ();
       desync_rvar->SetAttribute ("Min", DoubleValue (0.0));
-      desync_rvar->SetAttribute ("Max", DoubleValue (0.0));
+      desync_rvar->SetAttribute ("Max", DoubleValue (1.0));
       double desync = desync_rvar->GetValue ();
 
       m_caService.startCamDissemination (desync);
     }
-
-  // if(m_id == "veh2" || m_id == "veh5" || m_id == "veh1" || m_id == "veh6" || m_id == "veh7" || m_id == "veh10")
-  if ((m_id == "veh1" || m_id == "veh7") && m_send_denm == true)
+  if (veh_set.count(m_id) > 0 && m_send_denm == true)
     {
       libsumo::TraCIColor alertColor;
       alertColor.r = 128; // Red
@@ -433,6 +452,10 @@ emergencyVehicleAlert::receiveCAM (asn1cpp::Seq<CAM> cam, Address from)
   /* Implement CAM strategy here */
   libsumo::TraCIPosition pos;
   m_cam_received++;
+  if(is_monitoring)
+    {
+      return;
+    }
   // 從 CAM 中提取發送車輛的位置
   double sender_lat =
       asn1cpp::getField (cam->cam.camParameters.basicContainer.referencePosition.latitude, double) /
@@ -502,9 +525,6 @@ emergencyVehicleAlert::receiveCAM (asn1cpp::Seq<CAM> cam, Address from)
       if (distance < cam_transmit_distance && my_lane == sender_lane && leaderID == sender_id &&
           is_monitoring == false)
         {
-          // 減速至最大速度的 50%
-          m_client->TraCIAPI::vehicle.setMaxSpeed (m_id, m_max_speed * 0.5);
-
           // 可選:改變車輛顏色以視覺化減速狀態
           libsumo::TraCIColor orange;
           orange.r = 255;
@@ -513,10 +533,9 @@ emergencyVehicleAlert::receiveCAM (asn1cpp::Seq<CAM> cam, Address from)
           orange.a = 255;
           m_client->TraCIAPI::vehicle.setColor (m_id, orange);
 
-          // 3 秒後恢復原速度
           Simulator::Remove (m_speed_ev);
           m_speed_ev =
-              Simulator::Schedule (Seconds (1.0), &emergencyVehicleAlert::CheckDistanceAndRestore, this, sender_id);
+              Simulator::Schedule (Seconds (0.5), &emergencyVehicleAlert::CheckDistanceAndRestore, this, sender_id);
         }
     }
 }
@@ -955,6 +974,15 @@ emergencyVehicleAlert::CheckDistanceAndRestore (string senderVehicleId)
       libsumo::TraCIPosition senderPos = m_client->TraCIAPI::vehicle.getPosition (senderVehicleId);
       senderPos = m_client->TraCIAPI::simulation.convertXYtoLonLat (senderPos.x, senderPos.y);
 
+      string senderLaneIndex = m_client->TraCIAPI::vehicle.getLaneID (senderVehicleId);
+      string myLaneIndex = m_client->TraCIAPI::vehicle.getLaneID (m_id);
+      if (senderLaneIndex != myLaneIndex)
+        {
+          // 不在同一車道，恢復速度
+          RestoreSpeed (senderVehicleId);
+          return;
+        }
+
       double distanceToSender = appUtil_haversineDist (myPos.y, myPos.x, senderPos.y, senderPos.x);
       double safety_distance = 30;
 
@@ -986,6 +1014,7 @@ emergencyVehicleAlert::CheckDistanceAndRestore (string senderVehicleId)
           // cout << "Vehicle " << m_id << " adjusting speed due to proximity to DENM sender "
           //           << senderVehicleId << " (distance: " << distanceToSender
           //           << "m, target speed: " << targetSpeed << " m/s)" << endl;
+          Simulator::Remove (m_speed_ev);
           m_speed_ev =
               Simulator::Schedule (Seconds (0.5), &emergencyVehicleAlert::CheckDistanceAndRestore,
                                    this, senderVehicleId);

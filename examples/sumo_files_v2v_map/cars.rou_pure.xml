@@ -6,7 +6,7 @@
   <route id="4" edges="sw_to_se se_to_ne ne_to_nw nw_to_sw"/>
   <route id="5" edges="nw_to_ne ne_to_se se_to_sw sw_to_nw"/>
   <vType accel="5" decel="7.5" emergencyDecel="10" minGap="1.0" id="Car1" maxSpeed="5.55" laneChangeModel="LC2013" lcStrategic="-1" lcCooperative="-1" lcSpeedGain="0" lcKeepRight="0" />
-  <vType accel="4" decel="7.5" emergencyDecel="7" minGap="1.0" id="Car2" maxSpeed="6.9" laneChangeModel="LC2013" lcStrategic="-1" lcCooperative="-1" lcSpeedGain="0" lcKeepRight="0"/>
+  <vType accel="4" decel="7.5" emergencyDecel="10" minGap="1.0" id="Car2" maxSpeed="6.9" laneChangeModel="LC2013" lcStrategic="-1" lcCooperative="-1" lcSpeedGain="0" lcKeepRight="0"/>
   <vType accel="3" decel="7.5" emergencyDecel="10" minGap="1.0" id="Car3" maxSpeed="8.33" laneChangeModel="LC2013" lcStrategic="-1" lcCooperative="-1" lcSpeedGain="0" lcKeepRight="0"/>
   <vType accel="6" decel="7.5" emergencyDecel="10" minGap="1.0" id="Car4" maxSpeed="9.72" laneChangeModel="LC2013" lcStrategic="-1" lcCooperative="-1" lcSpeedGain="0" lcKeepRight="0"/>
   <vType accel="4" decel="7.5" emergencyDecel="10" minGap="1.0" id="Car5" maxSpeed="11.11" laneChangeModel="LC2013" lcStrategic="-1" lcCooperative="-1" lcSpeedGain="0" lcKeepRight="0"/>
