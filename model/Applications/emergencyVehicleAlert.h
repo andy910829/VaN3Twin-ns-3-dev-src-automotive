@@ -40,7 +40,7 @@ class emergencyVehicleAlert : public Application
     void TriggerEmergencyDenm();
     void vehicleTypeInit();
     // void setMaxSpeed ();
-    nlohmann::json QueryAllVehiclesAndLeaders();
+    void QueryAllVehiclesAndLeaders();
     /**
      * \brief Callback to handle a CAM reception.
      *
@@ -164,6 +164,7 @@ class emergencyVehicleAlert : public Application
     bool is_monitoring;
     std::string m_csv_name; //!< CSV log file name
     std::ofstream m_csv_ofstream_cam; //!< CSV log stream (CAM), created using m_csv_name
+    std::string m_monitored_vehicle_id;
 
     /* Counters */
     int m_cam_received;
@@ -177,6 +178,7 @@ class emergencyVehicleAlert : public Application
     EventId m_update_denm_ev; //!< Event to update the DENM
     EventId m_range_check_ev; //定期重置顏色
     EventId m_attacker_procedure_ev;
+    EventId m_query_all_vehicles_ev;
 
     bool m_send_cam;
     bool m_send_cpm;

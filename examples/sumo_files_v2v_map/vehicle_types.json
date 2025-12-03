@@ -1,14 +1,14 @@
 {
   "emergency_vehicles": [
     {
-      "id": "veh0",
+      "id": "veh1",
       "value": "High",
-      "reason": "Followed by a dense, high-speed, and aggressive platoon of 5 cars designed to close in rapidly, creating a high potential for a multi-car pile-up."
+      "reason": "High-Value Target. Followed by a dense, high-speed convoy of 8 vehicles in the same lane, creating a guaranteed high-impact collision scenario if its emergency communication is jammed."
     },
     {
-      "id": "veh1",
+      "id": "veh0",
       "value": "Low",
-      "reason": "Followed by a sparse flow of 2 conservative cars with larger following distances, significantly reducing the immediate risk of a chain-reaction collision."
+      "reason": "Low-Value Target. Followed by only one distant vehicle, making an attack less impactful and visually less dramatic."
     }
   ],
   "attacker_id": "veh2"
