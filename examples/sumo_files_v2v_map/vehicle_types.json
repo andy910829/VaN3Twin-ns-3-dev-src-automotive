@@ -1,14 +1,14 @@
 {
   "emergency_vehicles": [
     {
-      "id": "veh1",
+      "id": "veh0",
       "value": "High",
-      "reason": "High-Value Target. Followed by a dense, high-speed convoy of 8 vehicles in the same lane, creating a guaranteed high-impact collision scenario if its emergency communication is jammed."
+      "reason": "Followed by a dense, high-speed convoy of 8 cars, creating a high-impact collision scenario."
     },
     {
-      "id": "veh0",
+      "id": "veh1",
       "value": "Low",
-      "reason": "Low-Value Target. Followed by only one distant vehicle, making an attack less impactful and visually less dramatic."
+      "reason": "Followed by only one distant vehicle, representing a low-impact target."
     }
   ],
   "attacker_id": "veh2"

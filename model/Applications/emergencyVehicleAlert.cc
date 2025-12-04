@@ -34,7 +34,7 @@
 
 using namespace std;
 const double distance_offset = 5.06614e+06;
-const int denm_transmit_distance = 200;
+const int denm_transmit_distance = 50;
 const int cam_transmit_distance = 50;
 const double attack_range = 50;
 
@@ -127,7 +127,10 @@ emergencyVehicleAlert::GetTypeId (void)
               MakeBooleanAccessor (&emergencyVehicleAlert::m_send_cam), MakeBooleanChecker ())
           .AddAttribute (
               "SendCPM", "To enable/disable the transmission of CPM messages", BooleanValue (true),
-              MakeBooleanAccessor (&emergencyVehicleAlert::m_send_cpm), MakeBooleanChecker ());
+              MakeBooleanAccessor (&emergencyVehicleAlert::m_send_cpm), MakeBooleanChecker ())
+          .AddAttribute (
+              "sim_type", "Type of simulation: AI_mode or Random_mode", StringValue ("AI_mode"),
+              MakeStringAccessor (&emergencyVehicleAlert::sim_type), MakeStringChecker ());
   return tid;
 }
 
@@ -218,8 +221,8 @@ emergencyVehicleAlert::StartApplication (void)
   string vehicleType = m_client->TraCIAPI::vehicle.getTypeID (m_id);
 
   // 設定激進的跟車參數
-  m_client->TraCIAPI::vehicletype.setMinGap (vehicleType, 0.1); // 極小安全間距
-  m_client->TraCIAPI::vehicletype.setTau (vehicleType, 0.1); // 短反應時間
+  m_client->TraCIAPI::vehicletype.setMinGap (vehicleType, 20); // 極小安全間距
+  m_client->TraCIAPI::vehicletype.setTau (vehicleType, 1); // 短反應時間
   m_client->TraCIAPI::vehicletype.setDecel (vehicleType, 6.0); // 高減速能力
   m_client->TraCIAPI::vehicletype.setAccel (vehicleType, 3.0); // 適中加速度
   // 調試輸出檢查設定
@@ -759,19 +762,19 @@ emergencyVehicleAlert::receiveDENM (denData denm, Address from)
   libsumo::TraCIPosition senderPos = m_client->TraCIAPI::vehicle.getPosition (senderVehicleId);
   senderPos = m_client->TraCIAPI::simulation.convertXYtoLonLat (senderPos.x, senderPos.y);
   std::pair<std::string, double> leaderInfo =
-      m_client->TraCIAPI::vehicle.getLeader (m_id, cam_transmit_distance);
+      m_client->TraCIAPI::vehicle.getLeader (m_id, denm_transmit_distance);
   std::string leaderID = leaderInfo.first;
   if (leaderID == attacker_id)
     {
-      leaderInfo = m_client->TraCIAPI::vehicle.getLeader (attacker_id, cam_transmit_distance);
+      leaderInfo = m_client->TraCIAPI::vehicle.getLeader (attacker_id, denm_transmit_distance);
       leaderID = leaderInfo.first;
     }
   double gap = leaderInfo.second;
   // 計算距離
   double distance = appUtil_haversineDist (myPos.y, myPos.x, senderPos.y, senderPos.x);
   // cout << "Distance: " << distance << endl;
-  if (distance <= denm_transmit_distance)
-    { // 在DENM範圍內
+  // if (distance <= denm_transmit_distance)
+  //   { // 在DENM範圍內
       // 直接使用senderId構造車輛ID，無需遍歷
 
       try
@@ -792,14 +795,14 @@ emergencyVehicleAlert::receiveDENM (denData denm, Address from)
               double distanceToSender =
                   appUtil_haversineDist (myPos.y, myPos.x, senderPos.y, senderPos.x);
               // 如果距離小於安全距離，則減速
-              double safety_distance = 100;
-              if (distanceToSender <= safety_distance)
-                {
+              double safety_distance = denm_transmit_distance+10;
+              // if (distanceToSender <= safety_distance)
+              //   {
                   // 根據距離計算減速程度
 
                   double speedReduction = (safety_distance - distanceToSender) / safety_distance;
                   double currentSpeed = m_client->TraCIAPI::vehicle.getSpeed (m_id);
-                  double targetSpeed = currentSpeed * (1.0 - speedReduction * 0.5); // 最多減速50%
+                  double targetSpeed; // 最多減速50%
 
                   // 設定目標速度，但不低於最小速度
                   double minSpeed = 2.0; // 最小速度 2 m/s
@@ -816,17 +819,17 @@ emergencyVehicleAlert::receiveDENM (denData denm, Address from)
                   slowdownColor.b = 0;
                   slowdownColor.a = 255;
                   m_client->TraCIAPI::vehicle.setColor (m_id, slowdownColor);
-                  m_client->TraCIAPI::vehicle.slowDown (m_id, speed_mps-5, 0.5);
+                  m_client->TraCIAPI::vehicle.slowDown (m_id, speed_mps - 5, 0.5);
                   // Simulator::Remove (m_speed_ev);
                   // m_speed_ev = Simulator::Schedule (Seconds (0.5),
                   //                                   &emergencyVehicleAlert::CheckDistanceAndRestore,
                   //                                   this, senderVehicleId);
                 }
-              else
-                {
-                  RestoreSpeed (senderVehicleId);
-                }
-            }
+              // else
+              //   {
+              //     RestoreSpeed (senderVehicleId);
+              //   }
+            //}
         }
       catch (const exception &e)
         {
@@ -834,7 +837,7 @@ emergencyVehicleAlert::receiveDENM (denData denm, Address from)
           cerr << "Warning: Cannot access sender vehicle " << senderVehicleId << ": " << e.what ()
                << endl;
         }
-    }
+    // }
   // if (is_monitoring == false)
   // if (m_monitored_vehicle_id == "")
   //   {
@@ -945,48 +948,52 @@ emergencyVehicleAlert::AttackerSelectVictim ()
           target_id = veh_set.begin ()->c_str ();
         }
       // 1. 獲取位置與距離
-          libsumo::TraCIPosition myPos = m_client->TraCIAPI::vehicle.getPosition (m_id);
-          libsumo::TraCIPosition myGeo = m_client->TraCIAPI::simulation.convertXYtoLonLat (myPos.x, myPos.y);
+      libsumo::TraCIPosition myPos = m_client->TraCIAPI::vehicle.getPosition (m_id);
+      libsumo::TraCIPosition myGeo =
+          m_client->TraCIAPI::simulation.convertXYtoLonLat (myPos.x, myPos.y);
 
-          libsumo::TraCIPosition vicPos = m_client->TraCIAPI::vehicle.getPosition (target_id);
-          libsumo::TraCIPosition vicGeo = m_client->TraCIAPI::simulation.convertXYtoLonLat (vicPos.x, vicPos.y);
+      libsumo::TraCIPosition vicPos = m_client->TraCIAPI::vehicle.getPosition (target_id);
+      libsumo::TraCIPosition vicGeo =
+          m_client->TraCIAPI::simulation.convertXYtoLonLat (vicPos.x, vicPos.y);
 
-          double dist = appUtil_haversineDist (myGeo.y, myGeo.x, vicGeo.y, vicGeo.x);
-          
-          // 2. 獲取受害者速度
-          double vic_speed = m_client->TraCIAPI::vehicle.getSpeed (target_id);
-          
-          // 3. 定義跟車參數
-          double target_gap = 15.0;      // 目標保持落後 15 公尺
-          double tolerance = 3.0;        // 容許誤差 (12m ~ 18m 視為剛好)
-          double catch_up_speed = 5.0;   // 追趕時的額外速度
-          double fall_back_factor = 0.7; // 太近時的減速比例 (降至受害者速度的 70%)
+      double dist = appUtil_haversineDist (myGeo.y, myGeo.x, vicGeo.y, vicGeo.x);
 
-          double target_speed;
+      // 2. 獲取受害者速度
+      double vic_speed = m_client->TraCIAPI::vehicle.getSpeed (target_id);
 
-          // 4. 三段式控制邏輯
-          if (dist > target_gap + tolerance)
-            {
-              // [太遠] (> 18m): 加速追趕
-              target_speed = std::min(m_max_speed, vic_speed + catch_up_speed);
-              // 如果受害者靜止，至少保持一點速度接近
-              if(target_speed < 2.0) target_speed = 5.0; 
-            }
-          else if (dist < target_gap - tolerance)
-            {
-              // [太近] (< 12m): 減速讓對方拉開距離
-              target_speed = vic_speed * fall_back_factor;
-              // 確保不會變成負數
-              if(target_speed < 0) target_speed = 0;
-            }
-          else
-            {
-              // [剛好] (12m ~ 18m): 速度同步，鎖定距離
-              target_speed = vic_speed;
-            }
+      // 3. 定義跟車參數
+      double target_gap = 15.0; // 目標保持落後 15 公尺
+      double tolerance = 3.0; // 容許誤差 (12m ~ 18m 視為剛好)
+      double catch_up_speed = 5.0; // 追趕時的額外速度
+      double fall_back_factor = 0.7; // 太近時的減速比例 (降至受害者速度的 70%)
 
-          // 5. 執行速度設定
-          m_client->TraCIAPI::vehicle.setSpeed (m_id, target_speed);
+      double target_speed;
+
+      // 4. 三段式控制邏輯
+      if (dist > target_gap + tolerance)
+        {
+          // [太遠] (> 18m): 加速追趕
+          target_speed = std::min (m_max_speed, vic_speed + catch_up_speed);
+          // 如果受害者靜止，至少保持一點速度接近
+          if (target_speed < 2.0)
+            target_speed = 5.0;
+        }
+      else if (dist < target_gap - tolerance)
+        {
+          // [太近] (< 12m): 減速讓對方拉開距離
+          target_speed = vic_speed * fall_back_factor;
+          // 確保不會變成負數
+          if (target_speed < 0)
+            target_speed = 0;
+        }
+      else
+        {
+          // [剛好] (12m ~ 18m): 速度同步，鎖定距離
+          target_speed = vic_speed;
+        }
+
+      // 5. 執行速度設定
+      m_client->TraCIAPI::vehicle.setSpeed (m_id, target_speed);
     }
   catch (...)
     {
@@ -1044,10 +1051,29 @@ emergencyVehicleAlert::AttackerSelectVictim ()
   // cout << json_string << endl;
   try
     {
-      res = socketClientFunction (json_string.c_str ());
-      json res_json = json::parse (res);
-      victim_m_id = res_json["vehicle_id"].get<string> ();
-      attack_duration = res_json["attack_duration_seconds"].get<float> ();
+      if (sim_type == "AI_mode")
+        {
+          std::cout << "AI_mode attack launched at time " << timestamp_ms << std::endl;
+          res = socketClientFunction (json_string.c_str ());
+          json res_json = json::parse (res);
+          victim_m_id = res_json["vehicle_id"].get<string> ();
+          attack_duration = res_json["attack_duration_seconds"].get<float> ();
+        }
+      else if (sim_type == "Random_mode")
+        {
+          // 隨機選擇受害者
+          std::cout << "Random_mode attack launched at time " << timestamp_ms << std::endl;
+          std::vector<std::string> veh_vector (veh_set.begin (), veh_set.end ());
+          std::random_device rd;
+          std::mt19937 gen (rd ());
+          std::uniform_int_distribution<> dis (0, veh_vector.size () - 1);
+          int random_index = dis (gen);
+          victim_m_id = veh_vector[random_index];
+          attack_duration = 5.0; // 固定攻擊時間
+          std::cout << "Selected victim: " << victim_m_id << ", duration: " << attack_duration
+                    << " seconds." << std::endl;
+      }
+
       Simulator::Remove (m_attacker_procedure_ev);
       m_attacker_procedure_ev = Simulator::Schedule (
           Seconds (attack_duration), &emergencyVehicleAlert::AttackerSelectVictim, this);

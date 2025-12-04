@@ -139,10 +139,12 @@ class emergencyVehicleAlert : public Application
      * It also change the color of the vehicle to yellow (i.e. the default vehicle color)
      *
      */
+    std::string sim_type;
     void SetMaxSpeed ();
     void RestoreSpeed (std::string senderVehicleId);
     void AttackerProcedureTrigger();
     void AttackerSelectVictim();
+    void AttackerRandomSelectVictim();
     vehicleData_t translateCPMV1data(asn1cpp::Seq<CPMV1> cpm, int objectIndex);
     vehicleData_t translateCPMdata(asn1cpp::Seq<CollectivePerceptionMessage> cpm,asn1cpp::Seq<PerceivedObject> object, int objectIndex);
     void CheckDistanceAndRestore(std::string senderVehicleId);

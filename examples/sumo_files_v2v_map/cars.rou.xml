@@ -1,64 +1,55 @@
-<routes xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://sumo.dlr.de/xsd/routes_file.xsd">
-    <!-- 基礎路徑定義 (保持不變) -->
-    <route id="0" edges="ne_to_nw nw_to_sw sw_to_se se_to_ne"/>
-    <route id="1" edges="se_to_sw sw_to_nw nw_to_ne ne_to_se"/>
-    <route id="2" edges="nw_to_sw sw_to_se se_to_ne ne_to_nw"/>
-    <route id="3" edges="sw_to_nw nw_to_ne ne_to_se se_to_sw"/>
-    <route id="4" edges="sw_to_se se_to_ne ne_to_nw nw_to_sw"/>
-    <route id="5" edges="nw_to_ne ne_to_se se_to_sw sw_to_nw"/>
+<routes>
+    <!-- 定義路徑，所有車輛使用同一條環路以簡化場景 -->
+    <route id="r_main" edges="ne_to_nw nw_to_sw sw_to_se se_to_ne"/>
 
-    <!-- =================================================================== -->
-    <!-- vType 定義 - 嚴格遵守 simulator constraints -->
-    <!-- =================================================================== -->
+    <!-- 重新定義車輛類型以符合戰術需求 -->
+    <!-- 緊急車輛: 速度較慢 -->
+    <vType id="vTypeEmergency" accel="4.0" decel="4.5" emergencyDecel="9.0" sigma="0.5" maxSpeed="18" minGap="2.5" color="1,0,0"/>
 
-    <!-- 緊急車輛類型: 速度較慢，為後方高速車輛製造追撞條件 -->
-    <vType id="car0_emergency" accel="4.5" decel="4.5" maxSpeed="18" length="7.0" lcStrategic="-1" lcCooperative="-1" laneChangeModel="LC2013" lcSpeedGain="0" lcKeepRight="0"/>
-
-    <!-- 攻擊者類型: 速度不重要，因為將被 C++ 代碼接管 -->
-    <vType id="car1_attacker" accel="5" decel="5" maxSpeed="20" length="5.0" lcStrategic="-1" lcCooperative="-1" laneChangeModel="LC2013" lcSpeedGain="0" lcKeepRight="0"/>
-
-    <!-- 受害車輛類型 (高風險): 極高速度, 極短反應時間與安全距離，確保碰撞 -->
-    <vType id="car2_victim_fast" accel="6" decel="4" maxSpeed="28" minGap="0.1" tau="0.1" length="5.0" lcStrategic="-1" lcCooperative="-1" laneChangeModel="LC2013" lcSpeedGain="0" lcKeepRight="0"/>
+    <!-- 攻擊者: 速度與緊急車輛同步，但由C++控制 -->
+    <vType id="vTypeAttacker" accel="5.0" decel="5.0" emergencyDecel="9.0" sigma="0.5" maxSpeed="18" minGap="2.5" color="0,0,1"/>
     
-    <!-- 背景車輛類型 (低風險): 速度稍慢，用於填充場景 -->
-    <vType id="car3_victim_slow" accel="4" decel="4" maxSpeed="22" minGap="0.1" tau="0.1" length="5.0" lcStrategic="-1" lcCooperative="-1" laneChangeModel="LC2013" lcSpeedGain="0" lcKeepRight="0"/>
+    <!-- 受害者/背景車輛: 速度顯著較快，以製造追撞風險 -->
+    <vType id="vTypeVictim" accel="3.5" decel="4.0" emergencyDecel="9.0" sigma="0.5" maxSpeed="28" minGap="2.5" tau="1.2" />
 
+    <!-- 其他背景車輛類型，增加場景多樣性 -->
+    <vType id="vTypeNormal" accel="3.0" decel="4.0" sigma="0.5" maxSpeed="25" minGap="2.5" />
 
     <!-- =================================================================== -->
-    <!-- 車輛部署 - 嚴格按照 depart 時間升序排列 -->
-    <!-- 戰術核心: "三明治" 攻擊陣型 -->
+    <!--                      車輛部署 (按 depart 時間排序)                      -->
     <!-- =================================================================== -->
 
-    <!-- 時間點: 5.0s - 目標B (低風險) 出發 -->
-    <vehicle id="veh0" type="car0_emergency" route="2" depart="5.0" departLane="2" />
+    <!-- ** 核心戰術群組 (Core Tactical Group) ** -->
+    <!-- 目標 A (高價值): Lane 0 -->
+    <vehicle id="veh0" type="vTypeEmergency" route="r_main" depart="5.0" departLane="0" departPos="100" departSpeed="15"/>
+
+    <!-- 目標 B (低價值): Lane 2, 稍微靠前 -->
+    <vehicle id="veh1" type="vTypeEmergency" route="r_main" depart="5.0" departLane="2" departPos="110" departSpeed="15"/>
+
+    <!-- 攻擊者: Lane 1, 位於兩目標後方的"甜蜜點"，距離皆在50m內 -->
+    <vehicle id="veh2" type="vTypeAttacker" route="r_main" depart="5.0" departLane="1" departPos="60" departSpeed="15"/>
+
+    <!-- ** 高風險受害車隊 (High-Risk Victim Convoy behind Target A) ** -->
+    <!-- 這個車隊速度快，將快速追上 veh0 -->
+    <vehicle id="veh3" type="vTypeVictim" route="r_main" depart="5.5" departLane="0" departPos="80" departSpeed="20"/>
+    <vehicle id="veh4" type="vTypeVictim" route="r_main" depart="6.0" departLane="0" departPos="60" departSpeed="20"/>
+    <vehicle id="veh5" type="vTypeVictim" route="r_main" depart="6.5" departLane="0" departPos="40" departSpeed="22"/>
+    <vehicle id="veh6" type="vTypeVictim" route="r_main" depart="7.0" departLane="1" departPos="25" departSpeed="22"/>
+    <vehicle id="veh7" type="vTypeVictim" route="r_main" depart="7.5" departLane="0" departPos="10" departSpeed="25"/>
+    <vehicle id="veh8" type="vTypeVictim" route="r_main" depart="8.0" departLane="0" departPos="0" departSpeed="25"/>
+    <vehicle id="veh9" type="vTypeVictim" route="r_main" depart="8.5" departLane="1" departPos="0" departSpeed="25"/>
+    <vehicle id="veh10" type="vTypeVictim" route="r_main" depart="9.0" departLane="0" departPos="-15" departSpeed="28"/>
+
+    <!-- ** 低風險與背景車流 (Low-Risk and Background Traffic) ** -->
+    <!-- 稀疏地跟在目標 B 後方，攻擊價值低 -->
+    <vehicle id="veh11" type="vTypeNormal" route="r_main" depart="10.0" departLane="2" departPos="20" departSpeed="20"/>
     
-    <!-- 時間點: 5.5s - 目標A (高風險) 出發 -->
-    <vehicle id="veh1" type="car0_emergency" route="2" depart="5.5" departLane="0" />
-
-    <!-- 時間點: 6.0s - 攻擊者出發，位於兩目標之間，處於 "攻擊甜蜜點" -->
-    <!-- 它的位置 (lane="1") 和時間 (depart="6.0") 精心設計，確保在50m攻擊半徑內同時覆蓋 veh0 和 veh1 -->
-    <vehicle id="veh2" type="car1_attacker" route="2" depart="6.0" departLane="1" />
-
-    <!-- 時間點: 7.0s - 高風險追擊車隊 (目標A後方) 開始密集出發 -->
-    <vehicle id="veh3" type="car2_victim_fast" route="0" depart="7.0" departLane="0" />
-    <vehicle id="veh4" type="car2_victim_fast" route="0" depart="7.5" departLane="2" />
-    <vehicle id="veh5" type="car2_victim_fast" route="0" depart="8.0" departLane="0" />
-    <vehicle id="veh6" type="car2_victim_fast" route="0" depart="8.5" departLane="2" />
-    <vehicle id="veh7" type="car2_victim_fast" route="0" depart="9.0" departLane="0" />
-    <vehicle id="veh8" type="car2_victim_fast" route="0" depart="9.5" departLane="2" />
-    <vehicle id="veh9" type="car2_victim_fast" route="0" depart="10.0" departLane="0" />
-    <vehicle id="veh10" type="car2_victim_fast" route="0" depart="10.5" departLane="2" />
-
-    <!-- 填充一些背景車輛，增加場景真實感，但不干擾主要攻擊路徑 -->
-    <vehicle id="veh11" type="car3_victim_slow" route="2" depart="11.0" departLane="1" />
-    <vehicle id="veh12" type="car3_victim_slow" route="1" depart="12.0" departLane="2" />
-    <vehicle id="veh13" type="car3_victim_slow" route="3" depart="13.5" departLane="0" />
-
-    <!-- 時間點: 15.0s - 低風險追擊車輛 (目標B後方) 出發，距離很遠，攻擊價值低 -->
-    <vehicle id="veh14" type="car3_victim_slow" route="0" depart="15.0" departLane="2" />
-    
-    <!-- 更多背景車輛 -->
-    <vehicle id="veh15" type="car3_victim_slow" route="4" depart="16.0" departLane="1" />
-    <vehicle id="veh16" type="car3_victim_slow" route="5" depart="18.0" departLane="0" />
+    <!-- 其他背景車輛，增加場景真實感 -->
+    <vehicle id="veh12" type="vTypeNormal" route="r_main" depart="12.0" departLane="2" departPos="0" departSpeed="25"/>
+    <vehicle id="veh13" type="vTypeNormal" route="r_main" depart="15.0" departLane="1" departPos="0" departSpeed="22"/>
+    <vehicle id="veh14" type="vTypeNormal" route="r_main" depart="18.0" departLane="0" departPos="0" departSpeed="25"/>
+    <vehicle id="veh15" type="vTypeNormal" route="r_main" depart="20.0" departLane="2" departPos="0" departSpeed="23"/>
+    <vehicle id="veh16" type="vTypeNormal" route="r_main" depart="22.0" departLane="1" departPos="0" departSpeed="26"/>
+    <vehicle id="veh17" type="vTypeNormal" route="r_main" depart="25.0" departLane="0" departPos="0" departSpeed="24"/>
 
 </routes>

@@ -38,12 +38,14 @@
 #include "ns3/sumo_xml_parser.h"
 #include "ns3/vehicle-visualizer-module.h"
 #include "ns3/MetricSupervisor.h"
+#include "../../automotive/model/Applications/socketClient.h"
+#include "../../automotive/model/Applications/json.hpp"
 
 
 #include <unistd.h>
 #include "ns3/core-module.h"
 
-
+using json = nlohmann::json;
 using namespace ns3;
 
 NS_LOG_COMPONENT_DEFINE("v2v-nrv2x");
@@ -99,6 +101,7 @@ main (int argc, char *argv[])
   std::string csv_name_cumulative;
   std::string sumo_netstate_file_name;
   bool vehicle_vis = false;
+  std::string sim_type = "AI_mode";
 
   int numberOfNodes;
   uint32_t nodeCounter = 0;
@@ -147,6 +150,7 @@ main (int argc, char *argv[])
   CommandLine cmd;
 
   /* Cmd Line option for application */
+  cmd.AddValue ("sim_type", "Type of simulation: AI_mode or Random_mode", sim_type);
   cmd.AddValue ("realtime", "Use the realtime scheduler or not", realtime);
   cmd.AddValue ("sumo-gui", "Use SUMO gui or not", sumo_gui);
   cmd.AddValue ("sumo-updates", "SUMO granularity", sumo_updates);
@@ -235,10 +239,9 @@ main (int argc, char *argv[])
                 "The MCS to used for sidelink",
                 mcs);
 
-
   // Parse the command line
   cmd.Parse (argc, argv);
-
+  
   if (verbose)
     {
       LogComponentEnable ("v2v-nrv2x", LOG_LEVEL_INFO);
@@ -678,6 +681,9 @@ main (int argc, char *argv[])
   EmergencyVehicleAlertHelper.SetAttribute ("CSV", StringValue(csv_name));
   EmergencyVehicleAlertHelper.SetAttribute ("Model", StringValue ("nrv2x"));
   EmergencyVehicleAlertHelper.SetAttribute ("MetricSupervisor", PointerValue (metSup));
+  EmergencyVehicleAlertHelper.SetAttribute ("sim_type", StringValue (sim_type));
+
+
 
   /* callback function for node creation */
   int i=0;
@@ -720,7 +726,15 @@ main (int argc, char *argv[])
 
   /* start traci client with given function pointers */
   sumoClient->SumoSetup (setupNewWifiNode, shutdownWifiNode);
-
+  char *res;
+  json message = {{"type", "start_application"},{"sim_type", sim_type}};
+  res = socketClientFunction (message.dump ().c_str ());
+  // res = "OK";
+  if (std::string(res) != "OK")
+    {
+      std::cout << "Error starting vehicle visualizer application" << std::endl;
+      return -1;
+    }
   /*** 8. Start Simulation ***/
   Simulator::Stop (Seconds(simTime));
 
