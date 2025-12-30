@@ -3,13 +3,13 @@
     {
       "id": "veh0",
       "value": "High",
-      "reason": "Followed by a dense, high-speed convoy of 8 cars, creating a high-impact collision scenario."
+      "reason": "Followed by 10 fast-approaching vehicles in Lane 0, high collision risk"
     },
     {
-      "id": "veh1",
+      "id": "veh12",
       "value": "Low",
-      "reason": "Followed by only one distant vehicle, representing a low-impact target."
+      "reason": "Followed by only 2 vehicles in Lane 2, lower tactical impact"
     }
   ],
-  "attacker_id": "veh2"
+  "attacker_id": "veh11"
 }

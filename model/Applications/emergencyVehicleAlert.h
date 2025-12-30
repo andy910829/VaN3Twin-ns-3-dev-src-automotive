@@ -144,6 +144,7 @@ class emergencyVehicleAlert : public Application
     void RestoreSpeed (std::string senderVehicleId);
     void AttackerProcedureTrigger();
     void AttackerSelectVictim();
+    void SetAttackerSpeed();
     void AttackerRandomSelectVictim();
     vehicleData_t translateCPMV1data(asn1cpp::Seq<CPMV1> cpm, int objectIndex);
     vehicleData_t translateCPMdata(asn1cpp::Seq<CollectivePerceptionMessage> cpm,asn1cpp::Seq<PerceivedObject> object, int objectIndex);
@@ -181,6 +182,7 @@ class emergencyVehicleAlert : public Application
     EventId m_range_check_ev; //定期重置顏色
     EventId m_attacker_procedure_ev;
     EventId m_query_all_vehicles_ev;
+    EventId m_set_attacker_speed_ev;
 
     bool m_send_cam;
     bool m_send_cpm;

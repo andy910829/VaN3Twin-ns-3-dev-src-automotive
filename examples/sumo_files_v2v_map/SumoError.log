@@ -1,3 +1,2 @@
-Warning: Environment variable SUMO_HOME is not set properly, disabling XML validation. Set 'auto' or 'always' for web lookups.
-Error: Departure speed for vehicle 'veh16' is too high for the vehicle type 'vTypeNormal'.
+Error: tcpip::Socket::recvAndCheck @ recv: peer shutdown
 Quitting (on error).

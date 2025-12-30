@@ -221,8 +221,8 @@ emergencyVehicleAlert::StartApplication (void)
   string vehicleType = m_client->TraCIAPI::vehicle.getTypeID (m_id);
 
   // 設定激進的跟車參數
-  m_client->TraCIAPI::vehicletype.setMinGap (vehicleType, 20); // 極小安全間距
-  m_client->TraCIAPI::vehicletype.setTau (vehicleType, 1); // 短反應時間
+  m_client->TraCIAPI::vehicletype.setMinGap (vehicleType, 0.1); // 極小安全間距
+  m_client->TraCIAPI::vehicletype.setTau (vehicleType, 0.1); // 短反應時間
   m_client->TraCIAPI::vehicletype.setDecel (vehicleType, 6.0); // 高減速能力
   m_client->TraCIAPI::vehicletype.setAccel (vehicleType, 3.0); // 適中加速度
   // 調試輸出檢查設定
@@ -775,69 +775,69 @@ emergencyVehicleAlert::receiveDENM (denData denm, Address from)
   // cout << "Distance: " << distance << endl;
   // if (distance <= denm_transmit_distance)
   //   { // 在DENM範圍內
-      // 直接使用senderId構造車輛ID，無需遍歷
+  // 直接使用senderId構造車輛ID，無需遍歷
 
-      try
+  try
+    {
+      // 直接獲取發送者車輛的車道資訊
+      string senderLaneIndex = m_client->TraCIAPI::vehicle.getLaneID (senderVehicleId);
+      // cout << m_id << " " << myLaneIndex << " " << senderVehicleId << " " << senderLaneIndex <<endl;
+      // 檢查是否在同一車道
+      if (myLaneIndex == senderLaneIndex && senderVehicleId == leaderID)
         {
-          // 直接獲取發送者車輛的車道資訊
-          string senderLaneIndex = m_client->TraCIAPI::vehicle.getLaneID (senderVehicleId);
-          // cout << m_id << " " << myLaneIndex << " " << senderVehicleId << " " << senderLaneIndex <<endl;
-          // 檢查是否在同一車道
-          if (myLaneIndex == senderLaneIndex && senderVehicleId == leaderID)
-            {
-              // 獲取發送者車輛的實際位置
-              // libsumo::TraCIPosition senderPos =
-              //     m_client->TraCIAPI::vehicle.getPosition (senderVehicleId);
-              // senderPos =
-              //     m_client->TraCIAPI::simulation.convertXYtoLonLat (senderPos.x, senderPos.y);
+          // 獲取發送者車輛的實際位置
+          // libsumo::TraCIPosition senderPos =
+          //     m_client->TraCIAPI::vehicle.getPosition (senderVehicleId);
+          // senderPos =
+          //     m_client->TraCIAPI::simulation.convertXYtoLonLat (senderPos.x, senderPos.y);
 
-              // 計算與發送者車輛的實際距離
-              double distanceToSender =
-                  appUtil_haversineDist (myPos.y, myPos.x, senderPos.y, senderPos.x);
-              // 如果距離小於安全距離，則減速
-              double safety_distance = denm_transmit_distance+10;
-              // if (distanceToSender <= safety_distance)
-              //   {
-                  // 根據距離計算減速程度
+          // 計算與發送者車輛的實際距離
+          double distanceToSender =
+              appUtil_haversineDist (myPos.y, myPos.x, senderPos.y, senderPos.x);
+          // 如果距離小於安全距離，則減速
+          double safety_distance = denm_transmit_distance + 10;
+          // if (distanceToSender <= safety_distance)
+          //   {
+          // 根據距離計算減速程度
 
-                  double speedReduction = (safety_distance - distanceToSender) / safety_distance;
-                  double currentSpeed = m_client->TraCIAPI::vehicle.getSpeed (m_id);
-                  double targetSpeed; // 最多減速50%
+          double speedReduction = (safety_distance - distanceToSender) / safety_distance;
+          double currentSpeed = m_client->TraCIAPI::vehicle.getSpeed (m_id);
+          double targetSpeed; // 最多減速50%
 
-                  // 設定目標速度，但不低於最小速度
-                  double minSpeed = 2.0; // 最小速度 2 m/s
-                  double min_gap = 7.0;
-                  double ratio = (distanceToSender - min_gap) / (safety_distance - min_gap);
-                  targetSpeed = speed_mps * ratio;
+          // 設定目標速度，但不低於最小速度
+          double minSpeed = 2.0; // 最小速度 2 m/s
+          double min_gap = 7.0;
+          double ratio = (distanceToSender - min_gap) / (safety_distance - min_gap);
+          targetSpeed = speed_mps * ratio;
 
-                  m_client->TraCIAPI::vehicle.setSpeed (m_id, targetSpeed);
+          m_client->TraCIAPI::vehicle.setSpeed (m_id, targetSpeed);
 
-                  // 設置視覺指示（紅色表示減速）
-                  libsumo::TraCIColor slowdownColor;
-                  slowdownColor.r = 255;
-                  slowdownColor.g = 0;
-                  slowdownColor.b = 0;
-                  slowdownColor.a = 255;
-                  m_client->TraCIAPI::vehicle.setColor (m_id, slowdownColor);
-                  m_client->TraCIAPI::vehicle.slowDown (m_id, speed_mps - 5, 0.5);
-                  // Simulator::Remove (m_speed_ev);
-                  // m_speed_ev = Simulator::Schedule (Seconds (0.5),
-                  //                                   &emergencyVehicleAlert::CheckDistanceAndRestore,
-                  //                                   this, senderVehicleId);
-                }
-              // else
-              //   {
-              //     RestoreSpeed (senderVehicleId);
-              //   }
-            //}
+          // 設置視覺指示（紅色表示減速）
+          libsumo::TraCIColor slowdownColor;
+          slowdownColor.r = 255;
+          slowdownColor.g = 0;
+          slowdownColor.b = 0;
+          slowdownColor.a = 255;
+          m_client->TraCIAPI::vehicle.setColor (m_id, slowdownColor);
+          m_client->TraCIAPI::vehicle.slowDown (m_id, speed_mps - 5, 0.5);
+          // Simulator::Remove (m_speed_ev);
+          // m_speed_ev = Simulator::Schedule (Seconds (0.5),
+          //                                   &emergencyVehicleAlert::CheckDistanceAndRestore,
+          //                                   this, senderVehicleId);
         }
-      catch (const exception &e)
-        {
-          // 如果發送者車輛不存在或無法訪問，記錄錯誤但繼續執行
-          cerr << "Warning: Cannot access sender vehicle " << senderVehicleId << ": " << e.what ()
-               << endl;
-        }
-    // }
+      // else
+      //   {
+      //     RestoreSpeed (senderVehicleId);
+      //   }
+      //}
+    }
+  catch (const exception &e)
+    {
+      // 如果發送者車輛不存在或無法訪問，記錄錯誤但繼續執行
+      cerr << "Warning: Cannot access sender vehicle " << senderVehicleId << ": " << e.what ()
+           << endl;
+    }
+  // }
   // if (is_monitoring == false)
   // if (m_monitored_vehicle_id == "")
   //   {
@@ -850,8 +850,10 @@ emergencyVehicleAlert::receiveDENM (denData denm, Address from)
 void
 emergencyVehicleAlert::AttackerProcedureTrigger ()
 {
+  m_set_attacker_speed_ev =
+      Simulator::Schedule (Seconds (1.0), &emergencyVehicleAlert::SetAttackerSpeed, this);
   m_attacker_procedure_ev =
-      Simulator::Schedule (Seconds (6.0), &emergencyVehicleAlert::AttackerSelectVictim, this);
+      Simulator::Schedule (Seconds (15), &emergencyVehicleAlert::AttackerSelectVictim, this);
 }
 
 void
@@ -921,6 +923,69 @@ emergencyVehicleAlert::QueryAllVehiclesAndLeaders ()
           Seconds (0.1), &emergencyVehicleAlert::QueryAllVehiclesAndLeaders, this);
     }
 }
+void
+emergencyVehicleAlert::SetAttackerSpeed ()
+{
+  string target_id;
+  if (victim_m_id != "")
+    {
+      target_id = victim_m_id;
+    }
+  else
+    {
+      target_id = veh_set.begin ()->c_str ();
+    }
+  // 1. 獲取位置與距離
+  libsumo::TraCIPosition myPos = m_client->TraCIAPI::vehicle.getPosition (m_id);
+  libsumo::TraCIPosition myGeo =
+      m_client->TraCIAPI::simulation.convertXYtoLonLat (myPos.x, myPos.y);
+
+  libsumo::TraCIPosition vicPos = m_client->TraCIAPI::vehicle.getPosition (target_id);
+  libsumo::TraCIPosition vicGeo =
+      m_client->TraCIAPI::simulation.convertXYtoLonLat (vicPos.x, vicPos.y);
+
+  double dist = appUtil_haversineDist (myGeo.y, myGeo.x, vicGeo.y, vicGeo.x);
+
+  // 2. 獲取受害者速度
+  double vic_speed = m_client->TraCIAPI::vehicle.getSpeed (target_id);
+
+  // 3. 定義跟車參數
+  double target_gap = 5.0; // 目標保持落後 15 公尺
+  double tolerance = 3.0; // 容許誤差 (12m ~ 18m 視為剛好)
+  double catch_up_speed = 5.0; // 追趕時的額外速度
+  double fall_back_factor = 0.7; // 太近時的減速比例 (降至受害者速度的 70%)
+
+  double target_speed;
+
+  // 4. 三段式控制邏輯
+  if (dist > target_gap + tolerance)
+    {
+      // [太遠] (> 18m): 加速追趕
+      target_speed = std::min (m_max_speed, vic_speed + catch_up_speed);
+      // 如果受害者靜止，至少保持一點速度接近
+      if (target_speed < 2.0)
+        target_speed = 5.0;
+    }
+  else if (dist < target_gap - tolerance)
+    {
+      // [太近] (< 12m): 減速讓對方拉開距離
+      target_speed = vic_speed * fall_back_factor;
+      // 確保不會變成負數
+      if (target_speed < 0)
+        target_speed = 0;
+    }
+  else
+    {
+      // [剛好] (12m ~ 18m): 速度同步，鎖定距離
+      target_speed = vic_speed;
+    }
+
+  // 5. 執行速度設定
+  m_client->TraCIAPI::vehicle.setSpeed (m_id, target_speed);
+  Simulator::Remove (m_set_attacker_speed_ev);
+  m_set_attacker_speed_ev =
+      Simulator::Schedule (Seconds (0.5), &emergencyVehicleAlert::SetAttackerSpeed, this);
+}
 
 void
 emergencyVehicleAlert::AttackerSelectVictim ()
@@ -947,53 +1012,53 @@ emergencyVehicleAlert::AttackerSelectVictim ()
         {
           target_id = veh_set.begin ()->c_str ();
         }
-      // 1. 獲取位置與距離
-      libsumo::TraCIPosition myPos = m_client->TraCIAPI::vehicle.getPosition (m_id);
-      libsumo::TraCIPosition myGeo =
-          m_client->TraCIAPI::simulation.convertXYtoLonLat (myPos.x, myPos.y);
+      // // 1. 獲取位置與距離
+      // libsumo::TraCIPosition myPos = m_client->TraCIAPI::vehicle.getPosition (m_id);
+      // libsumo::TraCIPosition myGeo =
+      //     m_client->TraCIAPI::simulation.convertXYtoLonLat (myPos.x, myPos.y);
 
-      libsumo::TraCIPosition vicPos = m_client->TraCIAPI::vehicle.getPosition (target_id);
-      libsumo::TraCIPosition vicGeo =
-          m_client->TraCIAPI::simulation.convertXYtoLonLat (vicPos.x, vicPos.y);
+      // libsumo::TraCIPosition vicPos = m_client->TraCIAPI::vehicle.getPosition (target_id);
+      // libsumo::TraCIPosition vicGeo =
+      //     m_client->TraCIAPI::simulation.convertXYtoLonLat (vicPos.x, vicPos.y);
 
-      double dist = appUtil_haversineDist (myGeo.y, myGeo.x, vicGeo.y, vicGeo.x);
+      // double dist = appUtil_haversineDist (myGeo.y, myGeo.x, vicGeo.y, vicGeo.x);
 
-      // 2. 獲取受害者速度
-      double vic_speed = m_client->TraCIAPI::vehicle.getSpeed (target_id);
+      // // 2. 獲取受害者速度
+      // double vic_speed = m_client->TraCIAPI::vehicle.getSpeed (target_id);
 
-      // 3. 定義跟車參數
-      double target_gap = 15.0; // 目標保持落後 15 公尺
-      double tolerance = 3.0; // 容許誤差 (12m ~ 18m 視為剛好)
-      double catch_up_speed = 5.0; // 追趕時的額外速度
-      double fall_back_factor = 0.7; // 太近時的減速比例 (降至受害者速度的 70%)
+      // // 3. 定義跟車參數
+      // double target_gap = 5.0; // 目標保持落後 15 公尺
+      // double tolerance = 3.0; // 容許誤差 (12m ~ 18m 視為剛好)
+      // double catch_up_speed = 5.0; // 追趕時的額外速度
+      // double fall_back_factor = 0.7; // 太近時的減速比例 (降至受害者速度的 70%)
 
-      double target_speed;
+      // double target_speed;
 
-      // 4. 三段式控制邏輯
-      if (dist > target_gap + tolerance)
-        {
-          // [太遠] (> 18m): 加速追趕
-          target_speed = std::min (m_max_speed, vic_speed + catch_up_speed);
-          // 如果受害者靜止，至少保持一點速度接近
-          if (target_speed < 2.0)
-            target_speed = 5.0;
-        }
-      else if (dist < target_gap - tolerance)
-        {
-          // [太近] (< 12m): 減速讓對方拉開距離
-          target_speed = vic_speed * fall_back_factor;
-          // 確保不會變成負數
-          if (target_speed < 0)
-            target_speed = 0;
-        }
-      else
-        {
-          // [剛好] (12m ~ 18m): 速度同步，鎖定距離
-          target_speed = vic_speed;
-        }
+      // // 4. 三段式控制邏輯
+      // if (dist > target_gap + tolerance)
+      //   {
+      //     // [太遠] (> 18m): 加速追趕
+      //     target_speed = std::min (m_max_speed, vic_speed + catch_up_speed);
+      //     // 如果受害者靜止，至少保持一點速度接近
+      //     if (target_speed < 2.0)
+      //       target_speed = 5.0;
+      //   }
+      // else if (dist < target_gap - tolerance)
+      //   {
+      //     // [太近] (< 12m): 減速讓對方拉開距離
+      //     target_speed = vic_speed * fall_back_factor;
+      //     // 確保不會變成負數
+      //     if (target_speed < 0)
+      //       target_speed = 0;
+      //   }
+      // else
+      //   {
+      //     // [剛好] (12m ~ 18m): 速度同步，鎖定距離
+      //     target_speed = vic_speed;
+      //   }
 
-      // 5. 執行速度設定
-      m_client->TraCIAPI::vehicle.setSpeed (m_id, target_speed);
+      // // 5. 執行速度設定
+      // m_client->TraCIAPI::vehicle.setSpeed (m_id, target_speed);
     }
   catch (...)
     {
@@ -1072,11 +1137,11 @@ emergencyVehicleAlert::AttackerSelectVictim ()
           attack_duration = 5.0; // 固定攻擊時間
           std::cout << "Selected victim: " << victim_m_id << ", duration: " << attack_duration
                     << " seconds." << std::endl;
-      }
+        }
 
       Simulator::Remove (m_attacker_procedure_ev);
-      m_attacker_procedure_ev = Simulator::Schedule (
-          Seconds (attack_duration), &emergencyVehicleAlert::AttackerSelectVictim, this);
+      // m_attacker_procedure_ev = Simulator::Schedule (
+      //     Seconds (attack_duration), &emergencyVehicleAlert::AttackerSelectVictim, this);
       // Simulator::Stop(Seconds(attack_duration));
       return;
     }
