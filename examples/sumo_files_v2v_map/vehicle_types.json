@@ -3,13 +3,13 @@
     {
       "id": "veh0",
       "value": "High",
-      "reason": "Followed by 10 fast-approaching vehicles in Lane 0, high collision risk"
+      "reason": "Leading a high-density convoy of 10 fast-moving vehicles on Lane 0. A sudden brake will trigger a multi-car pile-up."
     },
     {
-      "id": "veh12",
+      "id": "veh1",
       "value": "Low",
-      "reason": "Followed by only 2 vehicles in Lane 2, lower tactical impact"
+      "reason": "Leading only 2 vehicles on Lane 2. Low casualty potential."
     }
   ],
-  "attacker_id": "veh11"
+  "attacker_id": "veh2"
 }

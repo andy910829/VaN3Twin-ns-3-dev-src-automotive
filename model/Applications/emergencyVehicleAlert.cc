@@ -34,7 +34,7 @@
 
 using namespace std;
 const double distance_offset = 5.06614e+06;
-const int denm_transmit_distance = 50;
+const int denm_transmit_distance = 1000;
 const int cam_transmit_distance = 50;
 const double attack_range = 50;
 
@@ -64,14 +64,6 @@ appUtil_haversineDist (double lat_a, double lon_a, double lat_b, double lon_b)
                   cos (DEG_2_RAD (lat_a)) * cos (DEG_2_RAD (lat_b)) *
                       sin (DEG_2_RAD (lon_b - lon_a) / 2) * sin (DEG_2_RAD (lon_b - lon_a) / 2)));
   return distance;
-  // if (distance / distance_offset > 2)
-  //   {
-  //     return distance;
-  //   }
-  // else
-  //   {
-  //     return fmod (distance, distance_offset);
-  //   }
 }
 
 // Function to compute the absolute difference between two angles (angles must be between -180 and 180)
@@ -214,18 +206,24 @@ emergencyVehicleAlert::StartApplication (void)
   /* Save the vehicles informations */
   vehicleTypeInit ();
   m_id = m_client->GetVehicleId (this->GetNode ());
+  std::cout << "[Debug] Vehicle initialized: " << m_id << std::endl;
+  if (veh_set.count (m_id) > 0)
+    {
+      std::cout << "[Debug] " << m_id << " is identified as an Emergency Vehicle." << std::endl;
+    }
+  else
+    {
+      std::cout << "[Debug] " << m_id << " is NOT in the emergency vehicle set." << std::endl;
+    }
   m_type = m_client->TraCIAPI::vehicle.getVehicleClass (m_id);
   m_max_speed = m_client->TraCIAPI::vehicle.getMaxSpeed (m_id);
-  // std::cout << m_id << " " << m_type << std::endl;
-  // 在現有的車輛信息獲取後添加
+
   string vehicleType = m_client->TraCIAPI::vehicle.getTypeID (m_id);
 
-  // 設定激進的跟車參數
-  m_client->TraCIAPI::vehicletype.setMinGap (vehicleType, 0.1); // 極小安全間距
-  m_client->TraCIAPI::vehicletype.setTau (vehicleType, 0.1); // 短反應時間
-  m_client->TraCIAPI::vehicletype.setDecel (vehicleType, 6.0); // 高減速能力
-  m_client->TraCIAPI::vehicletype.setAccel (vehicleType, 3.0); // 適中加速度
-  // 調試輸出檢查設定
+  m_client->TraCIAPI::vehicletype.setMinGap (vehicleType, 0.1);
+  m_client->TraCIAPI::vehicletype.setTau (vehicleType, 0.1);
+  m_client->TraCIAPI::vehicletype.setDecel (vehicleType, 6.0);
+  m_client->TraCIAPI::vehicletype.setAccel (vehicleType, 3.0);
   double currentMinGap = m_client->TraCIAPI::vehicle.getMinGap (m_id);
 
   VDP *traci_vdp = new VDPTraCI (m_client, m_id);
@@ -310,31 +308,6 @@ emergencyVehicleAlert::StartApplication (void)
       QueryAllVehiclesAndLeaders ();
       AttackerProcedureTrigger ();
     }
-  // else
-  //   {
-  //     // TriggerEmergencyDenm();
-  //     stationtype = StationType_passengerCar;
-  //     libsumo::TraCIColor connected;
-  //     connected.r = 0;
-  //     connected.g = 225;
-  //     connected.b = 255;
-  //     connected.a = 255;
-  //     m_client->TraCIAPI::vehicle.setColor (m_id, connected);
-  //   }
-
-  // else if (m_type=="emergency"){
-  //   stationtype = StationType_specialVehicle;
-  // m_LDM->enablePolygons (); // Uncomment to enable detected object polygon visualization for this specific vehicle
-  // }
-  // else
-  //   stationtype = StationType_unknown;
-
-  // libsumo::TraCIColor connected;
-  // connected.r = 0;
-  // connected.g = 225;
-  // connected.b = 255;
-  // connected.a = 255;
-  // m_client->TraCIAPI::vehicle.setColor (m_id, connected);
 
   /* Set sockets, callback and station properties in DENBasicService */
   m_denService.setSocketTx (m_socket);
@@ -382,11 +355,6 @@ emergencyVehicleAlert::StartApplication (void)
   /* Schedule CAM dissemination */
   if (m_send_cam == true)
     {
-      // Old desync code kept just for reference
-      // It may lead to nodes not being desynchronized properly in specific situations in which
-      // Simulator::Now().GetNanoSeconds () returns the same seed for multiple nodes
-      // srand(Simulator::Now().GetNanoSeconds ());
-      // double desync = ((double)rand()/RAND_MAX);
 
       Ptr<UniformRandomVariable> desync_rvar = CreateObject<UniformRandomVariable> ();
       desync_rvar->SetAttribute ("Min", DoubleValue (0.0));
@@ -398,13 +366,13 @@ emergencyVehicleAlert::StartApplication (void)
   if (veh_set.count (m_id) > 0 && m_send_denm == true)
     {
       libsumo::TraCIColor alertColor;
-      alertColor.r = 128; // Red
-      alertColor.g = 0; // Green
-      alertColor.b = 128; // Blue
-      alertColor.a = 255; // Alpha (不透明)
+      alertColor.r = 128;
+      alertColor.g = 0;
+      alertColor.b = 128;
+      alertColor.a = 255;
 
-      // 2. 透過 TraCI 客戶端，將這輛車 (m_id) 的顏色設定為 alertColor
       m_client->TraCIAPI::vehicle.setColor (m_id, alertColor);
+      std::cout << "[Debug] " << m_id << " color set to alert color." << std::endl;
       TriggerEmergencyDenm ();
     }
 
@@ -464,19 +432,7 @@ emergencyVehicleAlert::StopApplicationNow ()
 void
 emergencyVehicleAlert::receiveCAM (asn1cpp::Seq<CAM> cam, Address from)
 {
-  // /* Implement CAM strategy here */
-  // libsumo::TraCIPosition pos;
-  // m_cam_received++;
-  // // if (is_monitoring)
-  // //   {
-  // //     return;
-  // //   }
-  // // 從 CAM 中提取發送車輛的位置
   std::string vehicle_id = "veh" + std::to_string (asn1cpp::getField (cam->header.stationId, long));
-  // if (m_monitored_vehicle_id == vehicle_id || victim_m_id == vehicle_id)
-  //   {
-  //     return;
-  //   }
   double sender_lat =
       asn1cpp::getField (cam->cam.camParameters.basicContainer.referencePosition.latitude, double) /
       DOT_ONE_MICRO;
@@ -486,7 +442,6 @@ emergencyVehicleAlert::receiveCAM (asn1cpp::Seq<CAM> cam, Address from)
       DOT_ONE_MICRO;
   if (m_id == attacker_id)
     {
-      // 從 CAM 消息中提取數據
       double speed_mps =
           asn1cpp::getField (cam->cam.camParameters.highFrequencyContainer.choice
                                  .basicVehicleContainerHighFrequency.speed.speedValue,
@@ -508,8 +463,7 @@ emergencyVehicleAlert::receiveCAM (asn1cpp::Seq<CAM> cam, Address from)
       std::pair<std::string, double> leaderInfo =
           m_client->TraCIAPI::vehicle.getLeader (vehicle_id, denm_transmit_distance);
 
-      // 取得結果
-      std::string leaderID = leaderInfo.first; // 前車 ID
+      std::string leaderID = leaderInfo.first;
       double gap = leaderInfo.second;
 
       json CAM_json = {{"message_type", "CAM"},     {"vehicle_id", vehicle_id},
@@ -521,59 +475,7 @@ emergencyVehicleAlert::receiveCAM (asn1cpp::Seq<CAM> cam, Address from)
 
       json_queue.push (CAM_json);
     }
-  // else if (veh_set.count (m_id))
-  //   {
-  //     return;
-  //   }
-  // else
-  //   {
-  //     // 獲取接收車輛的當前位置
-  //     pos = m_client->TraCIAPI::vehicle.getPosition (m_id);
-  //     pos = m_client->TraCIAPI::simulation.convertXYtoLonLat (pos.x, pos.y);
-  //     // 計算距離
-  //     double distance = appUtil_haversineDist (pos.y, pos.x, sender_lat, sender_lon);
-  //     // 檢查是否在同一車道
-  //     string sender_id = "veh" + std::to_string (asn1cpp::getField (cam->header.stationId, long));
-  //     std::pair<std::string, double> leaderInfo =
-  //         m_client->TraCIAPI::vehicle.getLeader (m_id, cam_transmit_distance);
-  //     std::string leaderID = leaderInfo.first;
-  //     double gap = leaderInfo.second;
-  //     int my_lane = m_client->TraCIAPI::vehicle.getLaneIndex (m_id);
-  //     int sender_lane = m_client->TraCIAPI::vehicle.getLaneIndex (sender_id);
-
-  //     // 如果距離和航向角都在閾值內,且在同一車道(lane 0),則減速
-  //     if (distance < cam_transmit_distance && my_lane == sender_lane && leaderID == sender_id)
-  //       {
-  //         // 可選:改變車輛顏色以視覺化減速狀態
-  //         libsumo::TraCIColor orange;
-  //         orange.r = 255;
-  //         orange.g = 255;
-  //         orange.b = 255;
-  //         orange.a = 255;
-  //         m_client->TraCIAPI::vehicle.setColor (m_id, orange);
-  //         // m_client->TraCIAPI::vehicle.slowDown (m_id, m_max_speed / 2, 5);
-  //         Simulator::Remove (m_speed_ev);
-  //         m_speed_ev = Simulator::Schedule (
-  //             Seconds (0.5), &emergencyVehicleAlert::CheckDistanceAndRestore, this, sender_id);
-  //       }
-  //   }
 }
-
-// void
-// emergencyVehicleAlert::setMaxSpeed ()
-// {
-//   // 恢復原始最大速度
-//   m_client->TraCIAPI::vehicle.setMaxSpeed (m_id, m_max_speed);
-
-//   // 恢復原始顏色
-//   libsumo::TraCIColor white;
-//   white.r = 0;
-//   white.g = 255;
-//   white.b = 255;
-//   white.a = 255;
-//   m_client->TraCIAPI::vehicle.setColor (m_id, white);
-//   is_monitoring = false;
-// }
 
 void
 emergencyVehicleAlert::receiveCPMV1 (asn1cpp::Seq<CPMV1> cpm, Address from)
@@ -694,25 +596,19 @@ emergencyVehicleAlert::translateCPMV1data (asn1cpp::Seq<CPMV1> cpm, int objectIn
 void
 emergencyVehicleAlert::receiveDENM (denData denm, Address from)
 {
+  std::cout << "[Debug] Checking DENM reception for vehicle " << m_id << std::endl;
   auto mgmt = denm.getDenmMgmtData_asn_types ();
   long timestamp_ms = Simulator::Now ().GetMilliSeconds ();
   uint32_t senderId = mgmt.stationID;
   string senderVehicleId = "veh" + to_string (senderId);
   libsumo::TraCIPosition pos = m_client->TraCIAPI::vehicle.getPosition (senderVehicleId);
   pos = m_client->TraCIAPI::simulation.convertXYtoLonLat (pos.x, pos.y);
-
-  // 2. 獲取速度 (m/s)
+  std::cout << "DENM received from " << senderVehicleId << " at time " << timestamp_ms << std::endl;
   double speed_mps = m_client->TraCIAPI::vehicle.getSpeed (senderVehicleId);
-
-  // 3. 獲取加速度 (m/s²)
   double acceleration_mps2 = m_client->TraCIAPI::vehicle.getAcceleration (senderVehicleId);
-
-  // 4. 獲取航向角度 (度)
   double angle = m_client->TraCIAPI::vehicle.getAngle (senderVehicleId);
   int heading = static_cast<int> (angle);
   int lane_ID = m_client->TraCIAPI::vehicle.getLaneIndex (senderVehicleId);
-
-  // 創建與 CAM 格式相同的 JSON
   json DENM_sender_json = {
       {"message_type", "DENM"}, {"vehicle_id", senderVehicleId},
       {"latitude", pos.y},      {"longitude", pos.x},
@@ -733,7 +629,6 @@ emergencyVehicleAlert::receiveDENM (denData denm, Address from)
   attackerPos = m_client->TraCIAPI::simulation.convertXYtoLonLat (attackerPos.x, attackerPos.y);
   double distance_to_attacker =
       appUtil_haversineDist (myPos.y, myPos.x, attackerPos.y, attackerPos.x);
-  // 避免處理自己發送的DENM
   if (senderId == stol (m_id.substr (3)) ||
       (senderVehicleId == victim_m_id && m_type != "Attacker" &&
        distance_to_attacker <= attack_range))
@@ -753,11 +648,6 @@ emergencyVehicleAlert::receiveDENM (denData denm, Address from)
       m_client->TraCIAPI::vehicle.setColor (m_id, alertColor);
     }
 
-  // 獲取發送者位置資訊(不準確)
-  // double senderLat = mgmt.latitude / 10000000.0;
-  // double senderLon = mgmt.longitude / 10000000.0;
-  // 獲取自己的位置和車道資訊
-
   string myLaneIndex = m_client->TraCIAPI::vehicle.getLaneID (m_id);
   libsumo::TraCIPosition senderPos = m_client->TraCIAPI::vehicle.getPosition (senderVehicleId);
   senderPos = m_client->TraCIAPI::simulation.convertXYtoLonLat (senderPos.x, senderPos.y);
@@ -770,49 +660,27 @@ emergencyVehicleAlert::receiveDENM (denData denm, Address from)
       leaderID = leaderInfo.first;
     }
   double gap = leaderInfo.second;
-  // 計算距離
   double distance = appUtil_haversineDist (myPos.y, myPos.x, senderPos.y, senderPos.x);
-  // cout << "Distance: " << distance << endl;
-  // if (distance <= denm_transmit_distance)
-  //   { // 在DENM範圍內
-  // 直接使用senderId構造車輛ID，無需遍歷
 
   try
     {
-      // 直接獲取發送者車輛的車道資訊
       string senderLaneIndex = m_client->TraCIAPI::vehicle.getLaneID (senderVehicleId);
-      // cout << m_id << " " << myLaneIndex << " " << senderVehicleId << " " << senderLaneIndex <<endl;
-      // 檢查是否在同一車道
       if (myLaneIndex == senderLaneIndex && senderVehicleId == leaderID)
         {
-          // 獲取發送者車輛的實際位置
-          // libsumo::TraCIPosition senderPos =
-          //     m_client->TraCIAPI::vehicle.getPosition (senderVehicleId);
-          // senderPos =
-          //     m_client->TraCIAPI::simulation.convertXYtoLonLat (senderPos.x, senderPos.y);
-
-          // 計算與發送者車輛的實際距離
           double distanceToSender =
               appUtil_haversineDist (myPos.y, myPos.x, senderPos.y, senderPos.x);
-          // 如果距離小於安全距離，則減速
           double safety_distance = denm_transmit_distance + 10;
-          // if (distanceToSender <= safety_distance)
-          //   {
-          // 根據距離計算減速程度
-
           double speedReduction = (safety_distance - distanceToSender) / safety_distance;
           double currentSpeed = m_client->TraCIAPI::vehicle.getSpeed (m_id);
-          double targetSpeed; // 最多減速50%
+          double targetSpeed;
 
-          // 設定目標速度，但不低於最小速度
-          double minSpeed = 2.0; // 最小速度 2 m/s
+          double minSpeed = 2.0;
           double min_gap = 7.0;
           double ratio = (distanceToSender - min_gap) / (safety_distance - min_gap);
           targetSpeed = speed_mps * ratio;
 
           m_client->TraCIAPI::vehicle.setSpeed (m_id, targetSpeed);
 
-          // 設置視覺指示（紅色表示減速）
           libsumo::TraCIColor slowdownColor;
           slowdownColor.r = 255;
           slowdownColor.g = 0;
@@ -820,31 +688,13 @@ emergencyVehicleAlert::receiveDENM (denData denm, Address from)
           slowdownColor.a = 255;
           m_client->TraCIAPI::vehicle.setColor (m_id, slowdownColor);
           m_client->TraCIAPI::vehicle.slowDown (m_id, speed_mps - 5, 0.5);
-          // Simulator::Remove (m_speed_ev);
-          // m_speed_ev = Simulator::Schedule (Seconds (0.5),
-          //                                   &emergencyVehicleAlert::CheckDistanceAndRestore,
-          //                                   this, senderVehicleId);
         }
-      // else
-      //   {
-      //     RestoreSpeed (senderVehicleId);
-      //   }
-      //}
     }
   catch (const exception &e)
     {
-      // 如果發送者車輛不存在或無法訪問，記錄錯誤但繼續執行
       cerr << "Warning: Cannot access sender vehicle " << senderVehicleId << ": " << e.what ()
            << endl;
     }
-  // }
-  // if (is_monitoring == false)
-  // if (m_monitored_vehicle_id == "")
-  //   {
-  //     Simulator::Remove (m_range_check_ev);
-  //     m_range_check_ev =
-  //         Simulator::Schedule (Seconds (0.5), &emergencyVehicleAlert::RestoreOriginalColor, this);
-  //   }
 }
 
 void
@@ -859,7 +709,6 @@ emergencyVehicleAlert::AttackerProcedureTrigger ()
 void
 emergencyVehicleAlert::QueryAllVehiclesAndLeaders ()
 {
-  // 獲取所有車輛 ID 列表
   std::vector<std::string> vehicleIDs = m_client->TraCIAPI::vehicle.getIDList ();
 
   json vehicles_info = json::array ();
@@ -869,26 +718,19 @@ emergencyVehicleAlert::QueryAllVehiclesAndLeaders ()
     {
       try
         {
-          // 獲取車輛位置
           libsumo::TraCIPosition pos = m_client->TraCIAPI::vehicle.getPosition (vehicleID);
           pos = m_client->TraCIAPI::simulation.convertXYtoLonLat (pos.x, pos.y);
-
-          // 獲取車輛速度
           double speed_mps = m_client->TraCIAPI::vehicle.getSpeed (vehicleID);
 
-          // 獲取車輛加速度
           double acceleration_mps2 = m_client->TraCIAPI::vehicle.getAcceleration (vehicleID);
 
-          // 獲取車輛航向角
           double angle = m_client->TraCIAPI::vehicle.getAngle (vehicleID);
 
-          // 獲取車道索引
           int lane_ID = m_client->TraCIAPI::vehicle.getLaneIndex (vehicleID);
 
           std::pair<std::string, double> leaderInfo =
-              m_client->TraCIAPI::vehicle.getLeader (vehicleID, 100.0); // 搜尋範圍 100 公尺
+              m_client->TraCIAPI::vehicle.getLeader (vehicleID, 100.0);
 
-          // 建立 JSON 物件
           json vehicle_json = {{"vehicle_id", vehicleID},
                                {"latitude", pos.y},
                                {"longitude", pos.x},
@@ -898,7 +740,8 @@ emergencyVehicleAlert::QueryAllVehiclesAndLeaders ()
                                {"lane_ID", lane_ID},
                                {"leader_ID", leaderInfo.first},
                                {"gap_to_leader", leaderInfo.second},
-                               {"timestamp", Simulator::Now ().GetMilliSeconds ()}};
+                               {"timestamp", Simulator::Now ().GetMilliSeconds ()},
+                               {"target_vehicle_id", victim_m_id}};
 
           vehicles_info.push_back (vehicle_json);
         }
@@ -935,7 +778,7 @@ emergencyVehicleAlert::SetAttackerSpeed ()
     {
       target_id = veh_set.begin ()->c_str ();
     }
-  // 1. 獲取位置與距離
+
   libsumo::TraCIPosition myPos = m_client->TraCIAPI::vehicle.getPosition (m_id);
   libsumo::TraCIPosition myGeo =
       m_client->TraCIAPI::simulation.convertXYtoLonLat (myPos.x, myPos.y);
@@ -946,41 +789,45 @@ emergencyVehicleAlert::SetAttackerSpeed ()
 
   double dist = appUtil_haversineDist (myGeo.y, myGeo.x, vicGeo.y, vicGeo.x);
 
-  // 2. 獲取受害者速度
+  double my_lane_pos = m_client->TraCIAPI::vehicle.getLanePosition (m_id);
+  double vic_lane_pos = m_client->TraCIAPI::vehicle.getLanePosition (target_id);
+  string my_edge = m_client->TraCIAPI::vehicle.getRoadID (m_id);
+  string vic_edge = m_client->TraCIAPI::vehicle.getRoadID (target_id);
+
+  bool is_overtaking = (my_edge == vic_edge) && (my_lane_pos > vic_lane_pos);
+
   double vic_speed = m_client->TraCIAPI::vehicle.getSpeed (target_id);
 
-  // 3. 定義跟車參數
-  double target_gap = 5.0; // 目標保持落後 15 公尺
-  double tolerance = 3.0; // 容許誤差 (12m ~ 18m 視為剛好)
-  double catch_up_speed = 5.0; // 追趕時的額外速度
-  double fall_back_factor = 0.7; // 太近時的減速比例 (降至受害者速度的 70%)
+  double target_gap = 5.0;
+  double tolerance = 3.0;
+  double catch_up_speed = 5.0;
+  double fall_back_factor = 0.7;
 
   double target_speed;
 
-  // 4. 三段式控制邏輯
-  if (dist > target_gap + tolerance)
+  if (is_overtaking)
     {
-      // [太遠] (> 18m): 加速追趕
+      target_speed = vic_speed * 0.5;
+      if (target_speed < 1.0)
+        target_speed = 0.0;
+    }
+  else if (dist > target_gap + tolerance)
+    {
       target_speed = std::min (m_max_speed, vic_speed + catch_up_speed);
-      // 如果受害者靜止，至少保持一點速度接近
       if (target_speed < 2.0)
         target_speed = 5.0;
     }
   else if (dist < target_gap - tolerance)
     {
-      // [太近] (< 12m): 減速讓對方拉開距離
       target_speed = vic_speed * fall_back_factor;
-      // 確保不會變成負數
       if (target_speed < 0)
         target_speed = 0;
     }
   else
     {
-      // [剛好] (12m ~ 18m): 速度同步，鎖定距離
       target_speed = vic_speed;
     }
 
-  // 5. 執行速度設定
   m_client->TraCIAPI::vehicle.setSpeed (m_id, target_speed);
   Simulator::Remove (m_set_attacker_speed_ev);
   m_set_attacker_speed_ev =
@@ -999,8 +846,6 @@ emergencyVehicleAlert::AttackerSelectVictim ()
   std::string json_string;
   unordered_map<string, json> vehicle_data_map;
   char *res;
-  // if (victim_m_id != "")
-  //   {
   try
     {
       string target_id;
@@ -1012,66 +857,11 @@ emergencyVehicleAlert::AttackerSelectVictim ()
         {
           target_id = veh_set.begin ()->c_str ();
         }
-      // // 1. 獲取位置與距離
-      // libsumo::TraCIPosition myPos = m_client->TraCIAPI::vehicle.getPosition (m_id);
-      // libsumo::TraCIPosition myGeo =
-      //     m_client->TraCIAPI::simulation.convertXYtoLonLat (myPos.x, myPos.y);
-
-      // libsumo::TraCIPosition vicPos = m_client->TraCIAPI::vehicle.getPosition (target_id);
-      // libsumo::TraCIPosition vicGeo =
-      //     m_client->TraCIAPI::simulation.convertXYtoLonLat (vicPos.x, vicPos.y);
-
-      // double dist = appUtil_haversineDist (myGeo.y, myGeo.x, vicGeo.y, vicGeo.x);
-
-      // // 2. 獲取受害者速度
-      // double vic_speed = m_client->TraCIAPI::vehicle.getSpeed (target_id);
-
-      // // 3. 定義跟車參數
-      // double target_gap = 5.0; // 目標保持落後 15 公尺
-      // double tolerance = 3.0; // 容許誤差 (12m ~ 18m 視為剛好)
-      // double catch_up_speed = 5.0; // 追趕時的額外速度
-      // double fall_back_factor = 0.7; // 太近時的減速比例 (降至受害者速度的 70%)
-
-      // double target_speed;
-
-      // // 4. 三段式控制邏輯
-      // if (dist > target_gap + tolerance)
-      //   {
-      //     // [太遠] (> 18m): 加速追趕
-      //     target_speed = std::min (m_max_speed, vic_speed + catch_up_speed);
-      //     // 如果受害者靜止，至少保持一點速度接近
-      //     if (target_speed < 2.0)
-      //       target_speed = 5.0;
-      //   }
-      // else if (dist < target_gap - tolerance)
-      //   {
-      //     // [太近] (< 12m): 減速讓對方拉開距離
-      //     target_speed = vic_speed * fall_back_factor;
-      //     // 確保不會變成負數
-      //     if (target_speed < 0)
-      //       target_speed = 0;
-      //   }
-      // else
-      //   {
-      //     // [剛好] (12m ~ 18m): 速度同步，鎖定距離
-      //     target_speed = vic_speed;
-      //   }
-
-      // // 5. 執行速度設定
-      // m_client->TraCIAPI::vehicle.setSpeed (m_id, target_speed);
     }
   catch (...)
     {
       std::cout << "Victim " << victim_m_id << " not found or error occurred." << std::endl;
-      // 如果受害者消失或出錯，保持原速或減速
     }
-  // }
-  // else if (!veh_set.empty ())
-  //   {
-  //     // 還沒有選定 Victim 時的預設行為 (跟隨第一輛車)
-  //     double default_speed = m_client->TraCIAPI::vehicle.getSpeed (veh_set.begin ()->c_str ());
-  //     m_client->TraCIAPI::vehicle.setSpeed (m_id, default_speed);
-  //   }
   while (!json_queue.empty ())
     {
       if ((timestamp_ms - 200 <= json_queue.front ()["timestamp"] &&
@@ -1081,8 +871,6 @@ emergencyVehicleAlert::AttackerSelectVictim ()
           vehicle_data_map[json_queue.front ()["vehicle_id"].get<string> () +
                            json_queue.front ()["message_type"].get<string> ()] =
               json_queue.front ();
-          // DENM_cnt++;
-          // json_array.push_back (json_queue.front ());
         }
       json_queue.pop ();
     }
@@ -1093,13 +881,10 @@ emergencyVehicleAlert::AttackerSelectVictim ()
   libsumo::TraCIPosition pos = m_client->TraCIAPI::vehicle.getPosition (m_id);
   pos = m_client->TraCIAPI::simulation.convertXYtoLonLat (pos.x, pos.y);
 
-  // 2. 獲取速度 (m/s)
   double speed_mps = m_client->TraCIAPI::vehicle.getSpeed (m_id);
 
-  // 3. 獲取加速度 (m/s²)
   double acceleration_mps2 = m_client->TraCIAPI::vehicle.getAcceleration (m_id);
 
-  // 4. 獲取航向角度 (度)
   double angle = m_client->TraCIAPI::vehicle.getAngle (m_id);
   int heading = static_cast<int> (angle);
   message = {{"type", "attacker_query"},
@@ -1113,7 +898,6 @@ emergencyVehicleAlert::AttackerSelectVictim ()
               }},
              {"received_data", json_array}};
   json_string = message.dump ();
-  // cout << json_string << endl;
   try
     {
       if (sim_type == "AI_mode")
@@ -1126,7 +910,6 @@ emergencyVehicleAlert::AttackerSelectVictim ()
         }
       else if (sim_type == "Random_mode")
         {
-          // 隨機選擇受害者
           std::cout << "Random_mode attack launched at time " << timestamp_ms << std::endl;
           std::vector<std::string> veh_vector (veh_set.begin (), veh_set.end ());
           std::random_device rd;
@@ -1134,15 +917,12 @@ emergencyVehicleAlert::AttackerSelectVictim ()
           std::uniform_int_distribution<> dis (0, veh_vector.size () - 1);
           int random_index = dis (gen);
           victim_m_id = veh_vector[random_index];
-          attack_duration = 5.0; // 固定攻擊時間
+          attack_duration = 5.0;
           std::cout << "Selected victim: " << victim_m_id << ", duration: " << attack_duration
                     << " seconds." << std::endl;
         }
 
       Simulator::Remove (m_attacker_procedure_ev);
-      // m_attacker_procedure_ev = Simulator::Schedule (
-      //     Seconds (attack_duration), &emergencyVehicleAlert::AttackerSelectVictim, this);
-      // Simulator::Stop(Seconds(attack_duration));
       return;
     }
   catch (...)
@@ -1158,16 +938,13 @@ emergencyVehicleAlert::AttackerSelectVictim ()
 void
 emergencyVehicleAlert::CheckDistanceAndRestore (string senderVehicleId)
 {
-  // is_monitoring = true;
   m_monitored_vehicle_id = senderVehicleId;
   try
     {
-      // 獲取當前位置
       libsumo::TraCIPosition myPos = m_client->TraCIAPI::vehicle.getPosition (m_id);
       myPos = m_client->TraCIAPI::simulation.convertXYtoLonLat (myPos.x, myPos.y);
       double currentSpeed = m_client->TraCIAPI::vehicle.getSpeed (m_id);
 
-      // 獲取發送者位置
       libsumo::TraCIPosition senderPos = m_client->TraCIAPI::vehicle.getPosition (senderVehicleId);
       senderPos = m_client->TraCIAPI::simulation.convertXYtoLonLat (senderPos.x, senderPos.y);
       double senderSpeed = m_client->TraCIAPI::vehicle.getSpeed (senderVehicleId);
@@ -1176,7 +953,6 @@ emergencyVehicleAlert::CheckDistanceAndRestore (string senderVehicleId)
       string myLaneIndex = m_client->TraCIAPI::vehicle.getLaneID (m_id);
       if (senderLaneIndex != myLaneIndex || currentSpeed <= denm_veh_min_speed)
         {
-          // 不在同一車道，恢復速度
           RestoreSpeed (senderVehicleId);
           return;
         }
@@ -1186,61 +962,34 @@ emergencyVehicleAlert::CheckDistanceAndRestore (string senderVehicleId)
 
       if (distanceToSender >= safety_distance)
         {
-          // 距離安全，恢復原速度
           RestoreSpeed (senderVehicleId);
-          // cout << "Vehicle " << m_id << " restored speed - safe distance: " << distanceToSender
-          // << "m" << endl;
         }
       else
         {
-          // **關鍵修改：重新計算減速邏輯**
-          // double speedReduction = (safety_distance - distanceToSender) / safety_distance;
-          // double currentSpeed = m_client->TraCIAPI::vehicle.getSpeed (m_id);
-          // double targetSpeed = currentSpeed * (1.0 - speedReduction * 0.5);
-
-          // double minSpeed = 2.0;
-          // targetSpeed = max (targetSpeed, minSpeed);
           libsumo::TraCIColor slowdownColor;
           slowdownColor.r = 255;
           slowdownColor.g = 0;
           slowdownColor.b = 0;
           slowdownColor.a = 255;
-          // m_client->TraCIAPI::vehicle.setColor (m_id, slowdownColor);
-          // // 重新設定速度而不是只監控
-          // // m_client->TraCIAPI::vehicle.setSpeed (m_id, targetSpeed);
-          // m_client->TraCIAPI::vehicle.slowDown (m_id, currentSpeed * 0.95, 0.5);
-
-          // cout << "Vehicle " << m_id << " adjusting speed due to proximity to DENM sender "
-          //           << senderVehicleId << " (distance: " << distanceToSender
-          //           << "m, target speed: " << targetSpeed << " m/s)" << endl;
           double targetSpeed;
-          // 定義安全距離 (建議稍微加大，考慮車長)
           double safety_distance = cam_transmit_distance;
-          // 定義最小安全距離 (例如 5米，低於此距離需緊急煞停)
           double min_gap = 7.0;
           if (distanceToSender < min_gap)
             {
-              // 距離極近：緊急煞車 (設為 0 或極低速)
               targetSpeed = 0.0;
               m_client->TraCIAPI::vehicle.setColor (m_id, slowdownColor); // 紅色
             }
           else
             {
-              // 距離不足：目標速度應低於前車速度以拉開距離
-              // 邏輯：(當前距離 / 安全距離) * 前車速度
-              // 這樣當距離越近，速度會降得比前車更低
               double ratio = (distanceToSender - min_gap) / (safety_distance - min_gap);
               targetSpeed = senderSpeed * ratio;
 
-              // 確保不會變成負數
               if (targetSpeed < 0)
                 targetSpeed = 0;
 
               m_client->TraCIAPI::vehicle.setColor (m_id, slowdownColor); // 橘色
             }
 
-          // 執行減速：最後參數 0.5 是 duration，設為 0 代表立即改變目標速度讓 SUMO 控制煞車
-          // 或者設一個很短的時間如 0.1
           m_client->TraCIAPI::vehicle.slowDown (m_id, targetSpeed, 0.5);
           Simulator::Remove (m_speed_ev);
           m_speed_ev =
@@ -1250,8 +999,6 @@ emergencyVehicleAlert::CheckDistanceAndRestore (string senderVehicleId)
     }
   catch (const exception &e)
     {
-      // 發送者車輛可能已經離開，恢復速度
-      // cout << "error" << endl;
       RestoreSpeed (senderVehicleId);
     }
 }
@@ -1267,9 +1014,8 @@ emergencyVehicleAlert::RestoreOriginalColor ()
   normalColor.r = 0;
   normalColor.g = 225;
   normalColor.b = 255;
-  normalColor.a = 255; // 藍色
+  normalColor.a = 255;
   m_client->TraCIAPI::vehicle.setColor (m_id, normalColor);
-  // cout << "Vehicle " << m_id << " restored to original color (out of DENM range)" << endl;
 }
 
 void
@@ -1284,22 +1030,15 @@ emergencyVehicleAlert::TriggerEmergencyDenm ()
   data.setDenmMandatoryFields (compute_timestampIts (m_real_time), pos.x, pos.y);
   denData::denDataSituation situation_data;
 
-  // 範例：設定事件為「緊急車輛接近」
-  // 注意：CauseCode_emergencyVehicleApproaching 是一個假設的常數名稱，
-  // 你需要根據你使用的函式庫 (asn1c) 找到實際的常數名稱。
-  // 常見的可能是 CauseCode_t_emergencyVehicleApproaching 或類似的名稱。
-  situation_data.causeCode = 97; // 根據 ETSI TS 101 628-6-1，97 代表 emergencyVehicleApproaching
-  situation_data.subCauseCode = 0; // 此原因沒有次代碼
+  situation_data.causeCode = 97;
+  situation_data.subCauseCode = 0;
 
-  /* 3. 將 situation 容器設定到主 data 物件中 */
   data.setDenmSituationData_asn_types (situation_data);
 
-  /* Compute GeoArea for denms */
   GeoArea_t geoArea;
-  // 直接使用上面已經獲取的位置
   geoArea.posLong = pos.x * DOT_ONE_MICRO;
   geoArea.posLat = pos.y * DOT_ONE_MICRO;
-  geoArea.distA = 1000;
+  geoArea.distA = denm_transmit_distance;
   geoArea.distB = 0;
   geoArea.angle = 0;
   geoArea.shape = CIRCULAR;
@@ -1308,17 +1047,19 @@ emergencyVehicleAlert::TriggerEmergencyDenm ()
   trigger_retval = m_denService.appDENM_trigger (data, actionid);
   if (trigger_retval == DENM_NO_ERROR)
     {
+      std::cout << "[Debug] DENM successfully triggered by " << m_id << std::endl;
       m_updateDenmEvent = Simulator::Schedule (
-          Seconds (1.0), &emergencyVehicleAlert::UpdateEmergencyDenm, this, actionid);
+          Seconds (0.1), &emergencyVehicleAlert::UpdateEmergencyDenm, this, actionid);
+    }
+  else
+    {
+      std::cout << "[Debug] DENM trigger failed with error: " << trigger_retval << std::endl;
     }
 }
 
 void
 emergencyVehicleAlert::UpdateEmergencyDenm (DEN_ActionID_t actionID)
 {
-  libsumo::TraCIPosition attackerPos = m_client->TraCIAPI::vehicle.getPosition (attacker_id);
-  attackerPos = m_client->TraCIAPI::simulation.convertXYtoLonLat (attackerPos.x, attackerPos.y);
-  // std::cout << attackerPos.x << " " << attackerPos.y << std::endl;
   denData data;
   denData::denDataSituation situation_data;
   DENBasicService_error_t update_retval;
@@ -1329,45 +1070,33 @@ emergencyVehicleAlert::UpdateEmergencyDenm (DEN_ActionID_t actionID)
     }
   else
     {
-      // int decel_duration = floor ((denm_veh_speed - denm_veh_min_speed) / denm_veh_accel);
-      // std::cout << "Vehicle " << m_id << " is performing emergency braking to "
-      //           << denm_veh_min_speed << " m/s over " << decel_duration << " seconds."
-      //           << std::endl;
-      // m_client->TraCIAPI::vehicle.setAcceleration (m_id, denm_veh_accel,
-      //                                              decel_duration); // 緊急煞車
       denm_veh_speed = denm_veh_max_speed;
       m_client->TraCIAPI::vehicle.slowDown (m_id, denm_veh_speed, 0.5);
     }
-
-  // 設置強制欄位
   libsumo::TraCIPosition pos = m_client->TraCIAPI::vehicle.getPosition (m_id);
   pos = m_client->TraCIAPI::simulation.convertXYtoLonLat (pos.x, pos.y);
 
-  // 2. 使用有效位置設定強制性欄位
   data.setDenmMandatoryFields (compute_timestampIts (m_real_time), pos.y, pos.x);
-  // 更新事件資訊
-  situation_data.causeCode = 97; // 根據 ETSI TS 101 628-6-1，97 代表 emergencyVehicleApproaching
-  situation_data.subCauseCode = 0; // 此原因沒有次代碼
+  situation_data.causeCode = 97;
+  situation_data.subCauseCode = 0;
   data.setDenmSituationData_asn_types (situation_data);
-  // 更新地理區域
   GeoArea_t geoArea;
   geoArea.posLong = pos.x * DOT_ONE_MICRO;
   geoArea.posLat = pos.y * DOT_ONE_MICRO;
-  geoArea.distA = denm_transmit_distance; // 1000米半徑
+  geoArea.distA = denm_transmit_distance;
   geoArea.distB = 0;
   geoArea.angle = 0;
   geoArea.shape = CIRCULAR;
   m_denService.setGeoArea (geoArea);
 
-  // 更新DENM
   update_retval = m_denService.appDENM_update (data, actionID);
   if (update_retval != DENM_NO_ERROR)
     {
       NS_LOG_ERROR ("Failed to update DENM. Error code: " << update_retval);
-      return; // 停止進一步的更新
+      return;
     }
 
-  // 排程下一次更新
+  std::cout << "Vehicle " << m_id << " triggered emergency DENM." << std::endl;
   m_updateDenmEvent = Simulator::Schedule (
       Seconds (0.1), &emergencyVehicleAlert::UpdateEmergencyDenm, this, actionID);
 }
@@ -1379,27 +1108,12 @@ emergencyVehicleAlert::RestoreSpeed (string senderVehicleId)
   normal.r = 0;
   normal.g = 225;
   normal.b = 255;
-  normal.a = 255; //blue
+  normal.a = 255;
   double senderSpeed = m_client->TraCIAPI::vehicle.getSpeed (senderVehicleId);
   m_client->TraCIAPI::vehicle.setColor (m_id, normal);
-  // m_client->TraCIAPI::vehicle.setSpeed (m_id, senderSpeed + 200);
-  // m_client->TraCIAPI::vehicle.setMaxSpeed (m_id, m_max_speed);
   m_client->TraCIAPI::vehicle.slowDown (m_id, m_max_speed, 5);
-  // is_monitoring = false;
   m_monitored_vehicle_id = "";
 }
-
-// void
-// emergencyVehicleAlert::SetMaxSpeed ()
-// {
-//   libsumo::TraCIColor normal;
-//   normal.r = 0;
-//   normal.g = 225;
-//   normal.b = 255;
-//   normal.a = 255; //blue
-//   m_client->TraCIAPI::vehicle.setColor (m_id, normal);
-//   m_client->TraCIAPI::vehicle.setMaxSpeed (m_id, m_max_speed);
-// }
 
 void
 emergencyVehicleAlert::receiveCPM (asn1cpp::Seq<CollectivePerceptionMessage> cpm, Address from)
@@ -1409,7 +1123,6 @@ emergencyVehicleAlert::receiveCPM (asn1cpp::Seq<CollectivePerceptionMessage> cpm
   (void) from;
   //For every PO inside the CPM, if any
   bool POs_ok;
-  //auto wrappedContainer = asn1cpp::makeSeq(WrappedCpmContainer);
   int wrappedContainer_size = asn1cpp::sequenceof::getSize (cpm->payload.cpmContainers);
   for (int i = 0; i < wrappedContainer_size; i++)
     {
@@ -1423,7 +1136,6 @@ emergencyVehicleAlert::receiveCPM (asn1cpp::Seq<CollectivePerceptionMessage> cpm
               asn1cpp::getSeq (wrappedContainer->containerData.choice.PerceivedObjectContainer,
                                PerceivedObjectContainer);
           int PObjects_size = asn1cpp::sequenceof::getSize (POcontainer->perceivedObjects);
-          //cout << "["<< Simulator::Now ().GetSeconds ()<<"] " << m_id <<" received a new CPMv2 from " << asn1cpp::getField(cpm->header.stationId,long) << " with " << PObjects_size << " perceived objects." << endl;
           for (int j = 0; j < PObjects_size; j++)
             {
               LDM::returnedVehicleData_t PO_data;
