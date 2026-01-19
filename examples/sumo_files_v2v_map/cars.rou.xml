@@ -4,19 +4,19 @@
     <!-- ========================================== -->
     <!-- 1. 路徑定義                                -->
     <!-- ========================================== -->
-    <route id="r_main" edges="E0"/>
+    <route id="r_main" edges="E0 E5 E8"/>
 
     <!-- ========================================== -->
     <!-- 2. 車輛類型定義 (參數微調以製造追撞風險)    -->
     <!-- ========================================== -->
     <!-- 緊急車輛 (HVT): 設定較低速度限制 -->
-    <vType id="Car1" accel="5" decel="7.5" emergencyDecel="10" minGap="1.0" maxSpeed="15.0" laneChangeModel="LC2013" lcStrategic="-1" lcCooperative="-1" lcSpeedGain="0" lcKeepRight="0" />
+    <vType id="Car1" accel="5" decel="7.5" emergencyDecel="10" minGap="1.0" maxSpeed="40.0" laneChangeModel="LC2013" lcStrategic="-1" lcCooperative="-1" lcSpeedGain="0" lcKeepRight="0" />
     <!-- 攻擊者: 速度設定在中間值以保持在目標群中央 -->
-    <vType id="Car2" accel="4" decel="7.5" emergencyDecel="10" minGap="1.0" maxSpeed="17.0" laneChangeModel="LC2013" lcStrategic="-1" lcCooperative="-1" lcSpeedGain="0" lcKeepRight="0"/>
+    <vType id="Car2" accel="4" decel="7.5" emergencyDecel="10" minGap="1.0" maxSpeed="40.0" laneChangeModel="LC2013" lcStrategic="-1" lcCooperative="-1" lcSpeedGain="0" lcKeepRight="0"/>
     <!-- 受害/背景車輛: 高極限速度 (28m/s+) 製造嚴重追撞風險 -->
-    <vType id="Car3" accel="3" decel="7.5" emergencyDecel="10" minGap="1.0" maxSpeed="28.0" laneChangeModel="LC2013" lcStrategic="-1" lcCooperative="-1" lcSpeedGain="0" lcKeepRight="0"/>
-    <vType id="Car4" accel="6" decel="7.5" emergencyDecel="10" minGap="1.0" maxSpeed="29.0" laneChangeModel="LC2013" lcStrategic="-1" lcCooperative="-1" lcSpeedGain="0" lcKeepRight="0"/>
-    <vType id="Car5" accel="4" decel="7.5" emergencyDecel="10" minGap="1.0" maxSpeed="30.0" laneChangeModel="LC2013" lcStrategic="-1" lcCooperative="-1" lcSpeedGain="0" lcKeepRight="0"/>
+    <vType id="Car3" accel="3" decel="7.5" emergencyDecel="10" minGap="1.0" maxSpeed="90.0" laneChangeModel="LC2013" lcStrategic="-1" lcCooperative="-1" lcSpeedGain="0" lcKeepRight="0"/>
+    <vType id="Car4" accel="6" decel="7.5" emergencyDecel="10" minGap="1.0" maxSpeed="90.0" laneChangeModel="LC2013" lcStrategic="-1" lcCooperative="-1" lcSpeedGain="0" lcKeepRight="0"/>
+    <vType id="Car5" accel="4" decel="7.5" emergencyDecel="10" minGap="1.0" maxSpeed="90.0" laneChangeModel="LC2013" lcStrategic="-1" lcCooperative="-1" lcSpeedGain="0" lcKeepRight="0"/>
 
     <!-- ========================================== -->
     <!-- 3. 車輛實例 (嚴格按 depart 時間升序排列)    -->
@@ -33,9 +33,22 @@
 
     <!-- T=1.8 ~ 10.0: 受害車流，主要集中在車道 0 以增加風險 -->
     <vehicle id="veh3" type="Car3" depart="1.8" route="r_main" departLane="0" />
-    <vehicle id="veh4" type="Car4" depart="2.2" route="r_main" departLane="2" />
+    <vehicle id="veh4" type="Car4" depart="2.2" route="r_main" departLane="3" />
     <vehicle id="veh5" type="Car5" depart="2.8" route="r_main" departLane="0" />
-    <vehicle id="veh6" type="Car3" depart="3.2" route="r_main" departLane="1" />
-
+    <vehicle id="veh6" type="Car3" depart="3.2" route="r_main" departLane="3" />
+    <vehicle id="veh7" type="Car4" depart="3.8" route="r_main" departLane="0" />
+    <vehicle id="veh8" type="Car5" depart="4.2" route="r_main" departLane="2" />
+    <vehicle id="veh9" type="Car3" depart="4.8" route="r_main" departLane="0" />
+    <vehicle id="veh10" type="Car4" depart="5.2" route="r_main" departLane="1" />
+    <vehicle id="veh11" type="Car5" depart="5.8" route="r_main" departLane="0" />
+    <vehicle id="veh12" type="Car3" depart="6.5" route="r_main" departLane="0" />
+    <vehicle id="veh13" type="Car4" depart="7.0" route="r_main" departLane="1" />
+    <vehicle id="veh14" type="Car5" depart="7.5" route="r_main" departLane="0" />
+    <vehicle id="veh15" type="Car3" depart="8.0" route="r_main" departLane="3" />
+    <vehicle id="veh16" type="Car4" depart="8.5" route="r_main" departLane="2" />
+    <vehicle id="veh17" type="Car5" depart="9.0" route="r_main" departLane="0" />
+    <vehicle id="veh18" type="Car3" depart="9.4" route="r_main" departLane="3" />
+    <vehicle id="veh19" type="Car4" depart="9.8" route="r_main" departLane="0" />
+    <vehicle id="veh20" type="Car5" depart="10.0" route="r_main" departLane="1" />
 
 </routes>

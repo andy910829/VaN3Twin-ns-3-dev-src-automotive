@@ -9,6 +9,11 @@
       "id": "veh1",
       "value": "Low",
       "reason": "Leading only 2 vehicles on Lane 2. Low casualty potential."
+    },
+    {
+      "id": "veh4",
+      "value": "Low",
+      "reason": "Leading only 2 vehicles on Lane 2. Low casualty potential."
     }
   ],
   "attacker_id": "veh2"

@@ -39,9 +39,16 @@ class emergencyVehicleAlert : public Application
     void StopApplicationNow ();
     void TriggerEmergencyDenm();
     void vehicleTypeInit();
+    int shouldEnterForkRoad=2;
+    void SwitchToSideRoad();
+    void SwitchToMainRoad();
+    void monitorVehicleRoutePeriodic ();
+
+
+
     // void setMaxSpeed ();
     void QueryAllVehiclesAndLeaders();
-    /**
+    /** 
      * \brief Callback to handle a CAM reception.
      *
      * This function is called everytime a packet is received by the CABasicService.
@@ -145,7 +152,6 @@ class emergencyVehicleAlert : public Application
     void AttackerProcedureTrigger();
     void AttackerSelectVictim();
     void SetAttackerSpeed();
-    void AttackerRandomSelectVictim();
     vehicleData_t translateCPMV1data(asn1cpp::Seq<CPMV1> cpm, int objectIndex);
     vehicleData_t translateCPMdata(asn1cpp::Seq<CollectivePerceptionMessage> cpm,asn1cpp::Seq<PerceivedObject> object, int objectIndex);
     void CheckDistanceAndRestore(std::string senderVehicleId);
