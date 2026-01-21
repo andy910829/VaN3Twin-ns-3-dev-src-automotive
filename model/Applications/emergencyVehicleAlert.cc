@@ -37,6 +37,7 @@ const double distance_offset = 5.06614e+06;
 const int denm_transmit_distance = 200;
 const int cam_transmit_distance = 200;
 const double attack_range = 200;
+const double attack_procedure_start_time = 5.0; // seconds
 
 string attacker_id = "";
 string victim_m_id;
@@ -218,6 +219,21 @@ emergencyVehicleAlert::StartApplication (void)
   m_type = m_client->TraCIAPI::vehicle.getVehicleClass (m_id);
   m_max_speed = m_client->TraCIAPI::vehicle.getMaxSpeed (m_id);
 
+  string LaneIndex = m_client->TraCIAPI::vehicle.getLaneID (m_id);
+  if (m_id != attacker_id && veh_set.count (m_id) == 0)
+    {
+      if (LaneIndex == "E0_1")
+        {
+          // m_client->TraCIAPI::vehicle.setParameter (m_id, "laneChangeModel.lcKeepRight", "5.0");
+          m_client->TraCIAPI::vehicle.setParameter(m_id, "laneChangeModel.lcStrategic", "10.0");
+        }
+      else if (LaneIndex == "E0_2")
+        {
+          // m_client->TraCIAPI::vehicle.setParameter (m_id, "laneChangeModel.lcKeepRight", "0.0");
+          // m_client->TraCIAPI::vehicle.setParameter(m_id, "laneChangeModel.lcSpeedGain", "100.0");
+          m_client->TraCIAPI::vehicle.setParameter(m_id, "laneChangeModel.lcStrategic", "10.0");
+        }
+    }
   string vehicleType = m_client->TraCIAPI::vehicle.getTypeID (m_id);
 
   m_client->TraCIAPI::vehicletype.setMinGap (vehicleType, 0.1);
@@ -310,7 +326,7 @@ emergencyVehicleAlert::StartApplication (void)
     }
   else if (veh_set.count (m_id) == 0)
     {
-      Simulator::Schedule (Seconds (0.1), &emergencyVehicleAlert::monitorVehicleRoutePeriodic,
+      Simulator::Schedule (Seconds (attack_procedure_start_time+1), &emergencyVehicleAlert::monitorVehicleRoutePeriodic,
                            this);
     }
 
@@ -640,13 +656,15 @@ emergencyVehicleAlert::receiveDENM (denData denm, Address from)
       ((senderVehicleId == victim_m_id) && (m_type != "Attacker") &&
        (distance_to_attacker <= attack_range)))
     {
-      std::cout << "[Debug] " << m_id << " " << senderId << " " << stol (m_id.substr (3)) << " " << senderVehicleId << " " << victim_m_id
-                << distance_to_attacker << " "<<attack_range << std::endl;
+      std::cout << "[Debug] " << m_id << " " << senderId << " " << stol (m_id.substr (3)) << " "
+                << senderVehicleId << " " << victim_m_id << distance_to_attacker << " "
+                << attack_range << std::endl;
       std::cout << "Ignored DENM from " << senderVehicleId << " at time " << timestamp_ms
                 << std::endl;
-      if(shouldEnterForkRoad != 2 && (myLaneIndex.back() == senderLaneIndex.back())){
-          shouldEnterForkRoad = 0;  
-      }
+      if (shouldEnterForkRoad != 2 && (myLaneIndex.back () == senderLaneIndex.back ()))
+        {
+          shouldEnterForkRoad = 0;
+        }
       return;
     }
 
@@ -678,10 +696,10 @@ emergencyVehicleAlert::receiveDENM (denData denm, Address from)
 
       // if (myLaneIndex == senderLaneIndex && senderVehicleId == leaderID)
       // std::cout << "[Debug] "<< " | My lane: " << myLaneIndex.substr(0,2) << " | Sender lane: " << senderLaneIndex.substr(0,2) << std::endl;
-      if (myLaneIndex.back() == senderLaneIndex.back() &&(
-        (myLaneIndex.substr(0,2) == "E0" && senderLaneIndex.substr(0,2) == "E5")||
-        (myLaneIndex.substr(0,2) == "E5" && senderLaneIndex.substr(0,2) == "E8")|| 
-        (myLaneIndex == senderLaneIndex)))
+      if (myLaneIndex.back () == senderLaneIndex.back () &&
+          ((myLaneIndex.substr (0, 2) == "E0" && senderLaneIndex.substr (0, 2) == "E5") ||
+           (myLaneIndex.substr (0, 2) == "E5" && senderLaneIndex.substr (0, 2) == "E8") ||
+           (myLaneIndex == senderLaneIndex)))
         {
           libsumo::TraCIColor slowdownColor;
           slowdownColor.r = 255;
@@ -689,9 +707,10 @@ emergencyVehicleAlert::receiveDENM (denData denm, Address from)
           slowdownColor.b = 0;
           slowdownColor.a = 255;
           m_client->TraCIAPI::vehicle.setColor (m_id, slowdownColor);
-          if(shouldEnterForkRoad != 3){
-              shouldEnterForkRoad = 1;  
-          }
+          if (shouldEnterForkRoad != 3)
+            {
+              shouldEnterForkRoad = 1;
+            }
           if (distance <= safety_distance)
             {
               double distanceToSender =
@@ -724,7 +743,7 @@ emergencyVehicleAlert::AttackerProcedureTrigger ()
   m_set_attacker_speed_ev =
       Simulator::Schedule (Seconds (1.0), &emergencyVehicleAlert::SetAttackerSpeed, this);
   m_attacker_procedure_ev =
-      Simulator::Schedule (Seconds (5), &emergencyVehicleAlert::AttackerSelectVictim, this);
+      Simulator::Schedule (Seconds (attack_procedure_start_time), &emergencyVehicleAlert::AttackerSelectVictim, this);
 }
 
 void
@@ -1239,11 +1258,11 @@ emergencyVehicleAlert::SwitchToSideRoad ()
       std::string targetEdge = "";
       // std::cout << "Current Road ID: " << roadID << ", Lane Index: " << LaneIndex << std::endl;
       // 如果在 E0 (準備經過 J1)，設定目標為 E2 (右轉) 或 E1 (左轉)
-      if (roadID == "E0" && LaneIndex == "E0_0")
+      if (roadID == "E0" && (LaneIndex == "E0_0" || LaneIndex == "E0_1"))
         {
           targetEdge = "E2"; // 這裡設為右轉 E2，若想左轉改 E1
         }
-      else if (roadID == "E0" && LaneIndex == "E0_3")
+      else if (roadID == "E0" && (LaneIndex == "E0_2" || LaneIndex == "E0_3"))
         {
           targetEdge = "E1"; // 這裡設為左轉 E1，若想右轉改 E2
         }
@@ -1300,10 +1319,10 @@ emergencyVehicleAlert::SwitchToMainRoad ()
           targetEdge = "E8";
         }
       if (targetEdge != "")
-      {
+        {
           m_client->TraCIAPI::vehicle.changeTarget (m_id, targetEdge);
           shouldEnterForkRoad = 2;
-      }
+        }
     }
   catch (const std::exception &e)
     {

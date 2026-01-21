@@ -25,16 +25,16 @@ char* socketClientFunction(const char* content) {
         std::cerr << "Connection Failed" << std::endl;
         return "Connection Failed";
     }
-    std::cout << "Connected to server successfully." << std::endl;
+    // std::cout << "Connected to server successfully." << std::endl;
     // 4. 傳送資料給伺服器
     send(sock, content, strlen(content), 0);
-    std::cout << "Message sent" << std::endl;
+    // std::cout << "Message sent" << std::endl;
 
     // 5. 接收伺服器的回覆 (可選)
     char* buffer = (char *)calloc(1024,sizeof(char));
 
     read(sock, buffer, 1024);
-    std::cout << "Message from server: " << buffer << std::endl;
+    // std::cout << "Message from server: " << buffer << std::endl;
 
     // 6. 關閉 Socket
     close(sock);
