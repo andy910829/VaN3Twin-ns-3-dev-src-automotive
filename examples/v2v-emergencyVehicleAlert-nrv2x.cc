@@ -41,14 +41,13 @@
 #include "../../automotive/model/Applications/socketClient.h"
 #include "../../automotive/model/Applications/json.hpp"
 
-
 #include <unistd.h>
 #include "ns3/core-module.h"
 
 using json = nlohmann::json;
 using namespace ns3;
 
-NS_LOG_COMPONENT_DEFINE("v2v-nrv2x");
+NS_LOG_COMPONENT_DEFINE ("v2v-nrv2x");
 
 /**
  * \brief Get sidelink bitmap from string
@@ -56,12 +55,11 @@ NS_LOG_COMPONENT_DEFINE("v2v-nrv2x");
  * \param slBitMapVector The vector passed to store the converted sidelink bitmap
  */
 void
-GetSlBitmapFromString (std::string slBitMapString, std::vector <std::bitset<1> > &slBitMapVector)
+GetSlBitmapFromString (std::string slBitMapString, std::vector<std::bitset<1>> &slBitMapVector)
 {
-  static std::unordered_map<std::string, uint8_t> lookupTable =
-  {
-    { "0", 0 },
-    { "1", 1 },
+  static std::unordered_map<std::string, uint8_t> lookupTable = {
+      {"0", 0},
+      {"1", 1},
   };
 
   std::stringstream ss (slBitMapString);
@@ -73,7 +71,7 @@ GetSlBitmapFromString (std::string slBitMapString, std::vector <std::bitset<1> >
       extracted.push_back (token);
     }
 
-  for (const auto & v : extracted)
+  for (const auto &v : extracted)
     {
       if (lookupTable.find (v) == lookupTable.end ())
         {
@@ -83,6 +81,19 @@ GetSlBitmapFromString (std::string slBitMapString, std::vector <std::bitset<1> >
     }
 }
 
+void
+checkVehiclesAndStop (Ptr<TraciClient> sumoClient)
+{
+  if (sumoClient->GetVehicleMapSize () == 0)
+    {
+      std::cout << "No vehicles remaining. Stopping simulation." << std::endl;
+      Simulator::Stop ();
+      return;
+    }
+
+  // 每1秒檢查一次
+  Simulator::Schedule (Seconds (1.0), &checkVehiclesAndStop, sumoClient);
+}
 
 int
 main (int argc, char *argv[])
@@ -90,7 +101,7 @@ main (int argc, char *argv[])
 
   std::string sumo_folder = "src/automotive/examples/sumo_files_v2v_map/";
   std::string mob_trace = "cars.rou.xml";
-  std::string sumo_config ="src/automotive/examples/sumo_files_v2v_map/map.sumo.cfg";
+  std::string sumo_config = "src/automotive/examples/sumo_files_v2v_map/map.sumo.cfg";
 
   /*** 0.a App Options ***/
   bool verbose = true;
@@ -112,12 +123,10 @@ main (int argc, char *argv[])
   double m_baseline_prr = 150.0;
   bool m_metric_sup = false;
 
-
   // Simulation parameters.
-  double simTime = 100.0;
+  double simTime = 1000.0;
   //Sidelink bearers activation time
   Time slBearersActivationTime = Seconds (2.0);
-
 
   // NR parameters. We will take the input from the command line, and then we
   // will pass them inside the NR module.
@@ -154,51 +163,42 @@ main (int argc, char *argv[])
   cmd.AddValue ("realtime", "Use the realtime scheduler or not", realtime);
   cmd.AddValue ("sumo-gui", "Use SUMO gui or not", sumo_gui);
   cmd.AddValue ("sumo-updates", "SUMO granularity", sumo_updates);
-  cmd.AddValue ("sumo-folder","Position of sumo config files",sumo_folder);
+  cmd.AddValue ("sumo-folder", "Position of sumo config files", sumo_folder);
   cmd.AddValue ("mob-trace", "Name of the mobility trace file", mob_trace);
   cmd.AddValue ("sumo-config", "Location and name of SUMO configuration file", sumo_config);
   cmd.AddValue ("csv-log", "Name of the CSV log file", csv_name);
-  cmd.AddValue ("vehicle-visualizer", "Activate the web-based vehicle visualizer for ms-van3t", vehicle_vis);
-  cmd.AddValue ("csv-log-cumulative", "Name of the CSV log file for the cumulative (average) PRR and latency data", csv_name_cumulative);
-  cmd.AddValue ("netstate-dump-file", "Name of the SUMO netstate-dump file containing the vehicle-related information throughout the whole simulation", sumo_netstate_file_name);
+  cmd.AddValue ("vehicle-visualizer", "Activate the web-based vehicle visualizer for ms-van3t",
+                vehicle_vis);
+  cmd.AddValue ("csv-log-cumulative",
+                "Name of the CSV log file for the cumulative (average) PRR and latency data",
+                csv_name_cumulative);
+  cmd.AddValue ("netstate-dump-file",
+                "Name of the SUMO netstate-dump file containing the vehicle-related information "
+                "throughout the whole simulation",
+                sumo_netstate_file_name);
   cmd.AddValue ("baseline", "Baseline for PRR calculation", m_baseline_prr);
-  cmd.AddValue ("met-sup","Use the Metric supervisor or not",m_metric_sup);
-  cmd.AddValue ("penetrationRate", "Rate of vehicles equipped with wireless communication devices", penetrationRate);
+  cmd.AddValue ("met-sup", "Use the Metric supervisor or not", m_metric_sup);
+  cmd.AddValue ("penetrationRate", "Rate of vehicles equipped with wireless communication devices",
+                penetrationRate);
 
-  cmd.AddValue ("simTime",
-                "Simulation time in seconds",
-                simTime);
-  cmd.AddValue ("slBearerActivationTime",
-                "Sidelik bearer activation time in seconds",
+  cmd.AddValue ("simTime", "Simulation time in seconds", simTime);
+  cmd.AddValue ("slBearerActivationTime", "Sidelik bearer activation time in seconds",
                 slBearersActivationTime);
   cmd.AddValue ("centralFrequencyBandSl",
                 "The central frequency to be used for Sidelink band/channel",
                 centralFrequencyBandSl);
-  cmd.AddValue ("bandwidthBandSl",
-                "The system bandwidth to be used for Sidelink",
-                bandwidthBandSl);
-  cmd.AddValue ("txPower",
-                "total tx power in dBm",
-                txPower);
-  cmd.AddValue ("tddPattern",
-                "The TDD pattern string",
-                tddPattern);
-  cmd.AddValue ("slBitMap",
-                "The Sidelink bitmap string",
-                slBitMap);
-  cmd.AddValue ("numerologyBwpSl",
-                "The numerology to be used in Sidelink bandwidth part",
+  cmd.AddValue ("bandwidthBandSl", "The system bandwidth to be used for Sidelink", bandwidthBandSl);
+  cmd.AddValue ("txPower", "total tx power in dBm", txPower);
+  cmd.AddValue ("tddPattern", "The TDD pattern string", tddPattern);
+  cmd.AddValue ("slBitMap", "The Sidelink bitmap string", slBitMap);
+  cmd.AddValue ("numerologyBwpSl", "The numerology to be used in Sidelink bandwidth part",
                 numerologyBwpSl);
-  cmd.AddValue ("slSensingWindow",
-                "The Sidelink sensing window length in ms",
-                slSensingWindow);
+  cmd.AddValue ("slSensingWindow", "The Sidelink sensing window length in ms", slSensingWindow);
   cmd.AddValue ("slSelectionWindow",
                 "The parameter which decides the minimum Sidelink selection "
                 "window length in physical slots. T2min = slSelectionWindow * 2^numerology",
                 slSelectionWindow);
-  cmd.AddValue ("slSubchannelSize",
-                "The Sidelink subchannel size in RBs",
-                slSubchannelSize);
+  cmd.AddValue ("slSubchannelSize", "The Sidelink subchannel size in RBs", slSubchannelSize);
   cmd.AddValue ("slMaxNumPerReserve",
                 "The parameter which indicates the maximum number of reserved "
                 "PSCCH/PSSCH resources that can be indicated by an SCI.",
@@ -212,9 +212,7 @@ main (int argc, char *argv[])
                 "The parameter which indicates the maximum transmission number "
                 "(including new transmission and retransmission) for PSSCH.",
                 slMaxTxTransNumPssch);
-  cmd.AddValue ("ReservationPeriod",
-                "The resource reservation period in ms",
-                reservationPeriod);
+  cmd.AddValue ("ReservationPeriod", "The resource reservation period in ms", reservationPeriod);
   cmd.AddValue ("enableSensing",
                 "If true, it enables the sensing based resource selection for "
                 "SL, otherwise, no sensing is applied",
@@ -223,25 +221,18 @@ main (int argc, char *argv[])
                 "The start of the selection window in physical slots, "
                 "accounting for physical layer processing delay",
                 t1);
-  cmd.AddValue ("t2",
-                "The end of the selection window in physical slots",
-                t2);
+  cmd.AddValue ("t2", "The end of the selection window in physical slots", t2);
   cmd.AddValue ("slThresPsschRsrp",
                 "A threshold in dBm used for sensing based UE autonomous resource selection",
                 slThresPsschRsrp);
-  cmd.AddValue ("enableChannelRandomness",
-                "Enable shadowing and channel updates",
+  cmd.AddValue ("enableChannelRandomness", "Enable shadowing and channel updates",
                 enableChannelRandomness);
-  cmd.AddValue ("channelUpdatePeriod",
-                "The channel update period in ms",
-                channelUpdatePeriod);
-  cmd.AddValue ("mcs",
-                "The MCS to used for sidelink",
-                mcs);
+  cmd.AddValue ("channelUpdatePeriod", "The channel update period in ms", channelUpdatePeriod);
+  cmd.AddValue ("mcs", "The MCS to used for sidelink", mcs);
 
   // Parse the command line
   cmd.Parse (argc, argv);
-  
+
   if (verbose)
     {
       LogComponentEnable ("v2v-nrv2x", LOG_LEVEL_INFO);
@@ -260,39 +251,41 @@ main (int argc, char *argv[])
    */
   Config::SetDefault ("ns3::LteRlcUm::MaxTxBufferSize", UintegerValue (999999999));
 
-
   /* Use the realtime scheduler of ns3 */
-  if(realtime)
-      GlobalValue::Bind ("SimulatorImplementationType", StringValue ("ns3::RealtimeSimulatorImpl"));
+  if (realtime)
+    GlobalValue::Bind ("SimulatorImplementationType", StringValue ("ns3::RealtimeSimulatorImpl"));
 
   /***  Read from the mob_trace the number of vehicles that will be created.
    *       The number of vehicles is directly parsed from the rou.xml file, looking at all
    *       the valid XML elements of type <vehicle>
   ***/
-  NS_LOG_INFO("Reading the .rou file...");
+  NS_LOG_INFO ("Reading the .rou file...");
   std::string path = sumo_folder + mob_trace;
 
   /* Load the .rou.xml document */
-  xmlInitParser();
-  rou_xml_file = xmlParseFile(path.c_str ());
+  xmlInitParser ();
+  rou_xml_file = xmlParseFile (path.c_str ());
   if (rou_xml_file == NULL)
     {
-      NS_FATAL_ERROR("Error: unable to parse the specified XML file: "<<path);
+      NS_FATAL_ERROR ("Error: unable to parse the specified XML file: " << path);
     }
-  numberOfNodes = XML_rou_count_vehicles(rou_xml_file);
-  xmlFreeDoc(rou_xml_file);
-  xmlCleanupParser();
+  numberOfNodes = XML_rou_count_vehicles (rou_xml_file);
+  xmlFreeDoc (rou_xml_file);
+  xmlCleanupParser ();
 
-  if(numberOfNodes==-1)
+  if (numberOfNodes == -1)
     {
-      NS_FATAL_ERROR("Fatal error: cannot gather the number of vehicles from the specified XML file: "<<path<<". Please check if it is a correct SUMO file.");
+      NS_FATAL_ERROR (
+          "Fatal error: cannot gather the number of vehicles from the specified XML file: "
+          << path << ". Please check if it is a correct SUMO file.");
     }
-  NS_LOG_INFO("The .rou file has been read: " << numberOfNodes << " vehicles will be present in the simulation.");
+  NS_LOG_INFO ("The .rou file has been read: " << numberOfNodes
+                                               << " vehicles will be present in the simulation.");
   /*
    * Create a NodeContainer for all the UEs
    */
   NodeContainer allSlUesContainer;
-  allSlUesContainer.Create(numberOfNodes);
+  allSlUesContainer.Create (numberOfNodes);
 
   /*
    * Assign mobility to the UEs.
@@ -326,7 +319,8 @@ main (int argc, char *argv[])
   /* Create the configuration for the CcBwpHelper. SimpleOperationBandConf
    * creates a single BWP per CC
    */
-  CcBwpCreator::SimpleOperationBandConf bandConfSl (centralFrequencyBandSl, bandwidthBandSl, numCcPerBand, BandwidthPartInfo::V2V_Highway);
+  CcBwpCreator::SimpleOperationBandConf bandConfSl (centralFrequencyBandSl, bandwidthBandSl,
+                                                    numCcPerBand, BandwidthPartInfo::V2V_Highway);
   //CcBwpCreator::SimpleOperationBandConf bandConfSl (centralFrequencyBandSl, bandwidthBandSl, numCcPerBand, BandwidthPartInfo::CV2X_UrbanMicrocell);
 
   // By using the configuration created, it is time to make the operation bands
@@ -340,8 +334,10 @@ main (int argc, char *argv[])
    */
   if (enableChannelRandomness)
     {
-      Config::SetDefault ("ns3::ThreeGppChannelModel::UpdatePeriod", TimeValue (MilliSeconds (channelUpdatePeriod)));
-      nrHelper->SetChannelConditionModelAttribute ("UpdatePeriod", TimeValue (MilliSeconds (channelUpdatePeriod)));
+      Config::SetDefault ("ns3::ThreeGppChannelModel::UpdatePeriod",
+                          TimeValue (MilliSeconds (channelUpdatePeriod)));
+      nrHelper->SetChannelConditionModelAttribute ("UpdatePeriod",
+                                                   TimeValue (MilliSeconds (channelUpdatePeriod)));
       nrHelper->SetPathlossAttribute ("ShadowingEnabled", BooleanValue (true));
     }
   else
@@ -360,7 +356,6 @@ main (int argc, char *argv[])
   nrHelper->InitializeOperationBand (&bandSl);
   allBwps = CcBwpCreator::GetAllBwps ({bandSl});
 
-
   /*
    * Now, we can setup the attributes. We can have three kind of attributes:
    */
@@ -373,9 +368,11 @@ main (int argc, char *argv[])
    *
    * Following attribute would be common for all the UEs
    */
-  nrHelper->SetUeAntennaAttribute ("NumRows", UintegerValue (1));  //following parameter has no impact at the moment because:
+  nrHelper->SetUeAntennaAttribute (
+      "NumRows", UintegerValue (1)); //following parameter has no impact at the moment because:
   nrHelper->SetUeAntennaAttribute ("NumColumns", UintegerValue (2));
-  nrHelper->SetUeAntennaAttribute ("AntennaElement", PointerValue (CreateObject<IsotropicAntennaModel> ()));
+  nrHelper->SetUeAntennaAttribute ("AntennaElement",
+                                   PointerValue (CreateObject<IsotropicAntennaModel> ()));
 
   nrHelper->SetUePhyAttribute ("TxPower", DoubleValue (txPower));
 
@@ -391,7 +388,8 @@ main (int argc, char *argv[])
   uint8_t bwpIdForGbrMcptt = 0;
 
   nrHelper->SetBwpManagerTypeId (TypeId::LookupByName ("ns3::NrSlBwpManagerUe"));
-  nrHelper->SetUeBwpManagerAlgorithmAttribute ("GBR_MC_PUSH_TO_TALK", UintegerValue (bwpIdForGbrMcptt));
+  nrHelper->SetUeBwpManagerAlgorithmAttribute ("GBR_MC_PUSH_TO_TALK",
+                                               UintegerValue (bwpIdForGbrMcptt));
 
   std::set<uint8_t> bwpIdContainer;
   bwpIdContainer.insert (bwpIdForGbrMcptt);
@@ -400,7 +398,8 @@ main (int argc, char *argv[])
    * We have configured the attributes we needed. Now, install and get the pointers
    * to the NetDevices, which contains all the NR stack:
    */
-  NetDeviceContainer allSlUesNetDeviceContainer = nrHelper->InstallUeDevice (allSlUesContainer, allBwps);
+  NetDeviceContainer allSlUesNetDeviceContainer =
+      nrHelper->InstallUeDevice (allSlUesContainer, allBwps);
 
   // When all the configuration is done, explicitly call UpdateConfig ()
   for (auto it = allSlUesNetDeviceContainer.Begin (); it != allSlUesNetDeviceContainer.End (); ++it)
@@ -418,7 +417,7 @@ main (int argc, char *argv[])
    *   just communicate the pointer of already instantiated EpcHelper object,
    *   which is the same pointer communicated to the NrHelper above.
    */
-  Ptr<NrSlHelper> nrSlHelper = CreateObject <NrSlHelper> ();
+  Ptr<NrSlHelper> nrSlHelper = CreateObject<NrSlHelper> ();
   // Put the pointers inside NrSlHelper
   nrSlHelper->SetEpcHelper (epcHelper);
 
@@ -437,7 +436,7 @@ main (int argc, char *argv[])
    * In this example we use NrSlUeMacSchedulerSimple scheduler, which uses
    * fix MCS value
    */
-  nrSlHelper->SetNrSlSchedulerTypeId (NrSlUeMacSchedulerSimple::GetTypeId());
+  nrSlHelper->SetNrSlSchedulerTypeId (NrSlUeMacSchedulerSimple::GetTypeId ());
   nrSlHelper->SetUeSlSchedulerAttribute ("FixNrSlMcs", BooleanValue (true));
   nrSlHelper->SetUeSlSchedulerAttribute ("InitialNrSlMcs", UintegerValue (mcs));
 
@@ -449,7 +448,6 @@ main (int argc, char *argv[])
    */
   nrSlHelper->PrepareUeForSidelink (allSlUesNetDeviceContainer, bwpIdContainer);
 
-
   /*
    * Start preparing for all the sub Structs/RRC Information Element (IEs)
    * of LteRrcSap::SidelinkPreconfigNr. This is the main structure, which would
@@ -459,7 +457,8 @@ main (int argc, char *argv[])
   //SlResourcePoolNr IE
   LteRrcSap::SlResourcePoolNr slResourcePoolNr;
   //get it from pool factory
-  Ptr<NrSlCommPreconfigResourcePoolFactory> ptrFactory = Create<NrSlCommPreconfigResourcePoolFactory> ();
+  Ptr<NrSlCommPreconfigResourcePoolFactory> ptrFactory =
+      Create<NrSlCommPreconfigResourcePoolFactory> ();
   /*
    * Above pool factory is created to help the users of the simulator to create
    * a pool with valid default configuration. Please have a look at the
@@ -468,7 +467,7 @@ main (int argc, char *argv[])
    * In the following, we show how one could change those default pool parameter
    * values as per the need.
    */
-  std::vector <std::bitset<1> > slBitMapVector;
+  std::vector<std::bitset<1>> slBitMapVector;
   GetSlBitmapFromString (slBitMap, slBitMapVector);
   NS_ABORT_MSG_IF (slBitMapVector.empty (), "GetSlBitmapFromString failed to generate SL bitmap");
   ptrFactory->SetSlTimeResources (slBitMapVector);
@@ -494,7 +493,7 @@ main (int argc, char *argv[])
   //Configure the SlBwpPoolConfigCommonNr IE, which hold an array of pools
   LteRrcSap::SlBwpPoolConfigCommonNr slBwpPoolConfigCommonNr;
   //Array for pools, we insert the pool in the array as per its poolId
-  slBwpPoolConfigCommonNr.slTxPoolSelectedNormal [slResourcePoolIdNr.id] = slresoPoolConfigNr;
+  slBwpPoolConfigCommonNr.slTxPoolSelectedNormal[slResourcePoolIdNr.id] = slresoPoolConfigNr;
 
   //Configure the BWP IE
   LteRrcSap::Bwp bwp;
@@ -521,10 +520,10 @@ main (int argc, char *argv[])
   LteRrcSap::SlFreqConfigCommonNr slFreConfigCommonNr;
   //Array for BWPs. Here we will iterate over the BWPs, which
   //we want to use for SL.
-  for (const auto &it:bwpIdContainer)
+  for (const auto &it : bwpIdContainer)
     {
       // it is the BWP id
-      slFreConfigCommonNr.slBwpList [it] = slBwpConfigCommonNr;
+      slFreConfigCommonNr.slBwpList[it] = slBwpConfigCommonNr;
     }
 
   //Configure the TddUlDlConfigCommon IE
@@ -537,14 +536,15 @@ main (int argc, char *argv[])
 
   //Configure the SlUeSelectedConfig IE
   LteRrcSap::SlUeSelectedConfig slUeSelectedPreConfig;
-  NS_ABORT_MSG_UNLESS (slProbResourceKeep <= 1.0, "slProbResourceKeep value must be between 0 and 1");
+  NS_ABORT_MSG_UNLESS (slProbResourceKeep <= 1.0,
+                       "slProbResourceKeep value must be between 0 and 1");
   slUeSelectedPreConfig.slProbResourceKeep = slProbResourceKeep;
   //Configure the SlPsschTxParameters IE
   LteRrcSap::SlPsschTxParameters psschParams;
   psschParams.slMaxTxTransNumPssch = static_cast<uint8_t> (slMaxTxTransNumPssch);
   //Configure the SlPsschTxConfigList IE
   LteRrcSap::SlPsschTxConfigList pscchTxConfigList;
-  pscchTxConfigList.slPsschTxParameters [0] = psschParams;
+  pscchTxConfigList.slPsschTxParameters[0] = psschParams;
   slUeSelectedPreConfig.slPsschTxConfigList = pscchTxConfigList;
 
   /*
@@ -554,7 +554,7 @@ main (int argc, char *argv[])
   LteRrcSap::SidelinkPreconfigNr slPreConfigNr;
   slPreConfigNr.slPreconfigGeneral = slPreconfigGeneralNr;
   slPreConfigNr.slUeSelectedPreConfig = slUeSelectedPreConfig;
-  slPreConfigNr.slPreconfigFreqInfoList [0] = slFreConfigCommonNr;
+  slPreConfigNr.slPreconfigFreqInfoList[0] = slFreConfigCommonNr;
 
   //Communicate the above pre-configuration to the NrSlHelper
   nrSlHelper->InstallNrSlPreConfiguration (allSlUesNetDeviceContainer, slPreConfigNr);
@@ -598,7 +598,7 @@ main (int argc, char *argv[])
   InternetStackHelper internet;
   internet.Install (allSlUesContainer);
   uint32_t dstL2Id = 255;
-  Ipv4Address groupAddress4 ("225.0.0.0");     //use multicast address as destination
+  Ipv4Address groupAddress4 ("225.0.0.0"); //use multicast address as destination
 
   Address remoteAddress;
   Address localAddress;
@@ -614,17 +614,20 @@ main (int argc, char *argv[])
     {
       Ptr<Node> ueNode = allSlUesContainer.Get (u);
       // Set the default gateway for the UE
-      Ptr<Ipv4StaticRouting> ueStaticRouting = ipv4RoutingHelper.GetStaticRouting (ueNode->GetObject<Ipv4> ());
+      Ptr<Ipv4StaticRouting> ueStaticRouting =
+          ipv4RoutingHelper.GetStaticRouting (ueNode->GetObject<Ipv4> ());
       ueStaticRouting->SetDefaultRoute (epcHelper->GetUeDefaultGatewayAddress (), 1);
     }
   remoteAddress = InetSocketAddress (groupAddress4, port);
   localAddress = InetSocketAddress (Ipv4Address::GetAny (), port);
 
-  tft = Create<LteSlTft> (LteSlTft::Direction::TRANSMIT, LteSlTft::CommType::GroupCast, groupAddress4, dstL2Id);
+  tft = Create<LteSlTft> (LteSlTft::Direction::TRANSMIT, LteSlTft::CommType::GroupCast,
+                          groupAddress4, dstL2Id);
   //Set Sidelink bearers
   nrSlHelper->ActivateNrSlBearer (slBearersActivationTime, allSlUesNetDeviceContainer, tft);
 
-  tft = Create<LteSlTft> (LteSlTft::Direction::RECEIVE, LteSlTft::CommType::GroupCast, groupAddress4, dstL2Id);
+  tft = Create<LteSlTft> (LteSlTft::Direction::RECEIVE, LteSlTft::CommType::GroupCast,
+                          groupAddress4, dstL2Id);
   //Set Sidelink bearers
   nrSlHelper->ActivateNrSlBearer (slBearersActivationTime, allSlUesNetDeviceContainer, tft);
 
@@ -634,7 +637,7 @@ main (int argc, char *argv[])
   /*** 6. Setup Traci and start SUMO ***/
   Ptr<TraciClient> sumoClient = CreateObject<TraciClient> ();
   sumoClient->SetAttribute ("SumoConfigPath", StringValue (sumo_config));
-  sumoClient->SetAttribute ("SumoBinaryPath", StringValue (""));    // use system installation of sumo
+  sumoClient->SetAttribute ("SumoBinaryPath", StringValue ("")); // use system installation of sumo
   sumoClient->SetAttribute ("SynchInterval", TimeValue (Seconds (sumo_updates)));
   sumoClient->SetAttribute ("StartTime", TimeValue (Seconds (0.0)));
   sumoClient->SetAttribute ("SumoGUI", BooleanValue (sumo_gui));
@@ -647,10 +650,10 @@ main (int argc, char *argv[])
 
   std::string sumo_additional_options = "--verbose true";
 
-  if(sumo_netstate_file_name!="")
-  {
-    sumo_additional_options += " --netstate-dump " + sumo_netstate_file_name;
-  }
+  if (sumo_netstate_file_name != "")
+    {
+      sumo_additional_options += " --netstate-dump " + sumo_netstate_file_name;
+    }
 
   sumoClient->SetAttribute ("SumoAdditionalCmdOptions", StringValue (sumo_additional_options));
   sumoClient->SetAttribute ("SumoWaitForSocket", TimeValue (Seconds (1.0)));
@@ -659,115 +662,114 @@ main (int argc, char *argv[])
   vehicleVisualizer vehicleVisObj;
   Ptr<vehicleVisualizer> vehicleVis = &vehicleVisObj;
   if (vehicle_vis)
-  {
-      vehicleVis->startServer();
+    {
+      vehicleVis->startServer ();
       vehicleVis->connectToServer ();
       sumoClient->SetAttribute ("VehicleVisualizer", PointerValue (vehicleVis));
-  }
+    }
 
   Ptr<MetricSupervisor> metSup = NULL;
-  MetricSupervisor prrSupObj(m_baseline_prr);
-  if(m_metric_sup)
+  MetricSupervisor prrSupObj (m_baseline_prr);
+  if (m_metric_sup)
     {
       metSup = &prrSupObj;
-      metSup->setTraCIClient(sumoClient);
+      metSup->setTraCIClient (sumoClient);
     }
 
   /*** 7. Setup interface and application for dynamic nodes ***/
   emergencyVehicleAlertHelper EmergencyVehicleAlertHelper;
   EmergencyVehicleAlertHelper.SetAttribute ("Client", PointerValue (sumoClient));
-  EmergencyVehicleAlertHelper.SetAttribute ("RealTime", BooleanValue(realtime));
+  EmergencyVehicleAlertHelper.SetAttribute ("RealTime", BooleanValue (realtime));
   EmergencyVehicleAlertHelper.SetAttribute ("PrintSummary", BooleanValue (true));
-  EmergencyVehicleAlertHelper.SetAttribute ("CSV", StringValue(csv_name));
+  EmergencyVehicleAlertHelper.SetAttribute ("CSV", StringValue (csv_name));
   EmergencyVehicleAlertHelper.SetAttribute ("Model", StringValue ("nrv2x"));
   EmergencyVehicleAlertHelper.SetAttribute ("MetricSupervisor", PointerValue (metSup));
   EmergencyVehicleAlertHelper.SetAttribute ("sim_type", StringValue (sim_type));
 
-
-
   /* callback function for node creation */
-  int i=0;
-  STARTUP_FCN setupNewWifiNode = [&] (std::string vehicleID,TraciClient::StationTypeTraCI_t stationType) -> Ptr<Node>
-    {
-      if (nodeCounter >= allSlUesContainer.GetN())
-        NS_FATAL_ERROR("Node Pool empty!: " << nodeCounter << " nodes created.");
+  int i = 0;
+  STARTUP_FCN setupNewWifiNode = [&] (std::string vehicleID,
+                                      TraciClient::StationTypeTraCI_t stationType) -> Ptr<Node> {
+    if (nodeCounter >= allSlUesContainer.GetN ())
+      NS_FATAL_ERROR ("Node Pool empty!: " << nodeCounter << " nodes created.");
 
-      Ptr<Node> includedNode = allSlUesContainer.Get(nodeCounter);
-      ++nodeCounter; // increment counter for next node
+    Ptr<Node> includedNode = allSlUesContainer.Get (nodeCounter);
+    ++nodeCounter; // increment counter for next node
 
-      /* Install Application */
-      EmergencyVehicleAlertHelper.SetAttribute ("IpAddr", Ipv4AddressValue(groupAddress4));
-      i++;
+    /* Install Application */
+    EmergencyVehicleAlertHelper.SetAttribute ("IpAddr", Ipv4AddressValue (groupAddress4));
+    i++;
 
-      //ApplicationContainer CAMSenderApp = CamSenderHelper.Install (includedNode);
-      ApplicationContainer AppSample = EmergencyVehicleAlertHelper.Install (includedNode);
+    //ApplicationContainer CAMSenderApp = CamSenderHelper.Install (includedNode);
+    ApplicationContainer AppSample = EmergencyVehicleAlertHelper.Install (includedNode);
 
-      AppSample.Start (Seconds (0.0));
-      AppSample.Stop (Seconds(simTime) - Simulator::Now () - Seconds (0.1));
+    AppSample.Start (Seconds (0.0));
+    AppSample.Stop (Seconds (simTime) - Simulator::Now () - Seconds (0.1));
 
-      return includedNode;
-    };
+    return includedNode;
+  };
 
   /* callback function for node shutdown */
-  SHUTDOWN_FCN shutdownWifiNode = [] (Ptr<Node> exNode,std::string vehicleID)
-    {
-      /* stop all applications */
-      Ptr<emergencyVehicleAlert> appSample_ = exNode->GetApplication(0)->GetObject<emergencyVehicleAlert>();
+  SHUTDOWN_FCN shutdownWifiNode = [] (Ptr<Node> exNode, std::string vehicleID) {
+    /* stop all applications */
+    Ptr<emergencyVehicleAlert> appSample_ =
+        exNode->GetApplication (0)->GetObject<emergencyVehicleAlert> ();
 
-      if(appSample_)
-        appSample_->StopApplicationNow();
+    if (appSample_)
+      appSample_->StopApplicationNow ();
 
-       /* set position outside communication range */
-      Ptr<ConstantPositionMobilityModel> mob = exNode->GetObject<ConstantPositionMobilityModel>();
-      mob->SetPosition(Vector(-1000.0+(rand()%25),320.0+(rand()%25),250.0)); // rand() for visualization purposes
+    /* set position outside communication range */
+    Ptr<ConstantPositionMobilityModel> mob = exNode->GetObject<ConstantPositionMobilityModel> ();
+    mob->SetPosition (Vector (-1000.0 + (rand () % 25), 320.0 + (rand () % 25),
+                              250.0)); // rand() for visualization purposes
 
-      /* NOTE: further actions could be required for a safe shut down! */
-    };
+    /* NOTE: further actions could be required for a safe shut down! */
+  };
 
   /* start traci client with given function pointers */
   sumoClient->SumoSetup (setupNewWifiNode, shutdownWifiNode);
   char *res;
-  json message = {{"type", "start_application"},{"sim_type", sim_type}};
+  json message = {{"type", "start_application"}, {"sim_type", sim_type}};
   res = socketClientFunction (message.dump ().c_str ());
   // res = "OK";
-  if (std::string(res) != "OK")
+  if (std::string (res) != "OK")
     {
       std::cout << "Error starting vehicle visualizer application" << std::endl;
       return -1;
     }
   /*** 8. Start Simulation ***/
-  Simulator::Stop (Seconds(simTime));
+  // Simulator::Stop (Seconds (simTime));
 
+  Simulator::Schedule (Seconds (1.0), &checkVehiclesAndStop, sumoClient);
   Simulator::Run ();
   Simulator::Destroy ();
 
-  if(m_metric_sup)
+  if (m_metric_sup)
     {
-      if(csv_name_cumulative!="")
-      {
-        std::ofstream csv_cum_ofstream;
-        std::string full_csv_name = csv_name_cumulative + ".csv";
-
-        if(access(full_csv_name.c_str(),F_OK)!=-1)
+      if (csv_name_cumulative != "")
         {
-          // The file already exists
-          csv_cum_ofstream.open(full_csv_name,std::ofstream::out | std::ofstream::app);
-        }
-        else
-        {
-          // The file does not exist yet
-          csv_cum_ofstream.open(full_csv_name);
-          csv_cum_ofstream << "current_txpower_dBm,avg_PRR,avg_latency_ms" << std::endl;
-        }
+          std::ofstream csv_cum_ofstream;
+          std::string full_csv_name = csv_name_cumulative + ".csv";
 
-        csv_cum_ofstream << txPower << "," << metSup->getAveragePRR_overall () << "," << metSup->getAverageLatency_overall () << std::endl;
-      }
+          if (access (full_csv_name.c_str (), F_OK) != -1)
+            {
+              // The file already exists
+              csv_cum_ofstream.open (full_csv_name, std::ofstream::out | std::ofstream::app);
+            }
+          else
+            {
+              // The file does not exist yet
+              csv_cum_ofstream.open (full_csv_name);
+              csv_cum_ofstream << "current_txpower_dBm,avg_PRR,avg_latency_ms" << std::endl;
+            }
+
+          csv_cum_ofstream << txPower << "," << metSup->getAveragePRR_overall () << ","
+                           << metSup->getAverageLatency_overall () << std::endl;
+        }
       std::cout << "Average PRR: " << metSup->getAveragePRR_overall () << std::endl;
       std::cout << "Average latency (ms): " << metSup->getAverageLatency_overall () << std::endl;
     }
 
-
   return 0;
 }
-
 

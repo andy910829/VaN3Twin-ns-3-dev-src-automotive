@@ -4,16 +4,19 @@
     <!-- ========================================== -->
     <!-- 1. 路徑定義                                -->
     <!-- ========================================== -->
-    <route id="r_main" edges="E0 E5 E8"/>
+    <!-- 修正：根據 map.net.xml，E5 之後沒有連接 E8，且 E5 為末端道路，因此移除 E8 -->
+    <route id="r_main" edges="E0 E5"/>
 
     <!-- ========================================== -->
     <!-- 2. 車輛類型定義 (參數微調以製造追撞風險)    -->
     <!-- ========================================== -->
-    <!-- 緊急車輛 (HVT): 設定較低速度限制 -->
+    <!-- 緊急車輛 (HVT): 設定較低速度限制 (40m/s) -->
     <vType id="Car1" accel="5" decel="7.5" emergencyDecel="10" minGap="1.0" maxSpeed="40.0" laneChangeModel="LC2013" lcStrategic="-1" lcCooperative="-1" lcSpeedGain="0" lcKeepRight="0" />
-    <!-- 攻擊者: 速度設定在中間值以保持在目標群中央 -->
+    
+    <!-- 攻擊者: 速度設定在中間值 -->
     <vType id="Car2" accel="4" decel="7.5" emergencyDecel="10" minGap="1.0" maxSpeed="40.0" laneChangeModel="LC2013" lcStrategic="-1" lcCooperative="-1" lcSpeedGain="0" lcKeepRight="0"/>
-    <!-- 受害/背景車輛: 高極限速度 (28m/s+) 製造嚴重追撞風險 -->
+    
+    <!-- 受害/背景車輛: 高極限速度 (90m/s) 製造嚴重追撞風險 -->
     <vType id="Car3" accel="3" decel="7.5" emergencyDecel="10" minGap="1.0" maxSpeed="90.0" laneChangeModel="LC2013" lcStrategic="-1" lcCooperative="-1" lcSpeedGain="0" lcKeepRight="0"/>
     <vType id="Car4" accel="6" decel="7.5" emergencyDecel="10" minGap="1.0" maxSpeed="90.0" laneChangeModel="LC2013" lcStrategic="-1" lcCooperative="-1" lcSpeedGain="0" lcKeepRight="0"/>
     <vType id="Car5" accel="4" decel="7.5" emergencyDecel="10" minGap="1.0" maxSpeed="90.0" laneChangeModel="LC2013" lcStrategic="-1" lcCooperative="-1" lcSpeedGain="0" lcKeepRight="0"/>
@@ -23,6 +26,7 @@
     <!-- ========================================== -->
     
     <!-- T=0.0: 高價值目標 (車道 0) -->
+    <!-- 這輛車會在 Lane 0 慢速行駛，後續的 veh3, veh5 等高速車輛會追上它 -->
     <vehicle id="veh0" type="Car1" depart="0.0" route="r_main" departLane="0" />
 
     <!-- T=0.5: 次要目標 (車道 2) -->
