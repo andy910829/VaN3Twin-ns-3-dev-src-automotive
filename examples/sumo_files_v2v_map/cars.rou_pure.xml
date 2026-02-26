@@ -2,37 +2,76 @@
 <routes>
 
     <!-- ========================================== -->
-    <!-- 1. 路徑定義 (Routes)                       -->
+    <!-- 1. 路徑定義                                -->
     <!-- ========================================== -->
-    <route id="r_main" edges="E0"/>
-
-
-    <!-- ========================================== -->
-    <!-- 2. 車輛類型定義 (Vehicle Types)            -->
-    <!-- ========================================== -->
-    <vType accel="5" decel="7.5" emergencyDecel="10" minGap="1.0" id="Car1" maxSpeed="5.55" laneChangeModel="LC2013" lcStrategic="-1" lcCooperative="-1" lcSpeedGain="0" lcKeepRight="0" />
-    <vType accel="4" decel="7.5" emergencyDecel="10" minGap="1.0" id="Car2" maxSpeed="6.9" laneChangeModel="LC2013" lcStrategic="-1" lcCooperative="-1" lcSpeedGain="0" lcKeepRight="0"/>
-    <vType accel="3" decel="7.5" emergencyDecel="10" minGap="1.0" id="Car3" maxSpeed="8.33" laneChangeModel="LC2013" lcStrategic="-1" lcCooperative="-1" lcSpeedGain="0" lcKeepRight="0"/>
-    <vType accel="6" decel="7.5" emergencyDecel="10" minGap="1.0" id="Car4" maxSpeed="9.72" laneChangeModel="LC2013" lcStrategic="-1" lcCooperative="-1" lcSpeedGain="0" lcKeepRight="0"/>
-    <vType accel="4" decel="7.5" emergencyDecel="10" minGap="1.0" id="Car5" maxSpeed="11.11" laneChangeModel="LC2013" lcStrategic="-1" lcCooperative="-1" lcSpeedGain="0" lcKeepRight="0"/>
-    <vType accel="7" decel="7.5" emergencyDecel="10" minGap="1.0" id="Car6" maxSpeed="12.5" laneChangeModel="LC2013" lcStrategic="-1" lcCooperative="-1" lcSpeedGain="0" lcKeepRight="0"/>
-    <vType accel="4" decel="7.5" emergencyDecel="10" minGap="1.0" id="Car7" maxSpeed="13.89" laneChangeModel="LC2013" lcStrategic="-1" lcCooperative="-1" lcSpeedGain="0" lcKeepRight="0"/>
-    <vType accel="4" decel="7.5" emergencyDecel="10" minGap="1.0" id="Car8" maxSpeed="15.27" laneChangeModel="LC2013" lcStrategic="-1" lcCooperative="-1" lcSpeedGain="0" lcKeepRight="0"/>
-    <vType accel="4" decel="7.5" emergencyDecel="10" minGap="1.0" id="Car9" maxSpeed="16.66" laneChangeModel="LC2013" lcStrategic="-1" lcCooperative="-1" lcSpeedGain="0" lcKeepRight="0"/>
-
+    <!-- r_main 定義為直行高速公路路徑。由於攻擊旨在阻止車輛駛入交流道，
+         因此車輛若未收到警報，將依此路徑直行，從而錯過交流道。-->
+    <route id="r_main" edges="E0 E5"/>
 
     <!-- ========================================== -->
-    <!-- 3. 車輛實例 (Vehicles)                     -->
+    <!-- 2. 車輛類型定義                              -->
+    <!--    - 調整 maxSpeed 以製造追趕與壅塞效果。      -->
+    <!--    - accel 參數微調以模擬不同駕駛行為。        -->
+    <!-- ========================================== -->
+    <!-- 緊急車輛 (EV): 較低 maxSpeed (15m/s) 扮演移動路障 -->
+    <vType id="Car1" accel="5" decel="7.5" emergencyDecel="10" minGap="1.0" maxSpeed="15.0" laneChangeModel="LC2013" lcStrategic="-1" lcCooperative="-1" lcSpeedGain="0" lcKeepRight="0" />
+    
+    <!-- 攻擊者 (Attacker): 速度設定為中等 (20m/s)。實際速度由 TraCI 控制。 -->
+    <vType id="Car2" accel="4" decel="7.5" emergencyDecel="10" minGap="1.0" maxSpeed="20.0" laneChangeModel="LC2013" lcStrategic="-1" lcCooperative="-1" lcSpeedGain="0" lcKeepRight="0"/>
+    
+    <!-- 受害/背景車輛 (Victims): 高 maxSpeed (30m/s) 確保快速追上慢速 EV，
+         並設定不同 accel 模擬車流多樣性。 -->
+    <vType id="Car3" accel="3.0" decel="7.5" emergencyDecel="10" minGap="1.0" maxSpeed="30.0" laneChangeModel="LC2013" lcStrategic="-1" lcCooperative="-1" lcSpeedGain="0" lcKeepRight="0"/>
+    <vType id="Car4" accel="4.0" decel="7.5" emergencyDecel="10" minGap="1.0" maxSpeed="30.0" laneChangeModel="LC2013" lcStrategic="-1" lcCooperative="-1" lcSpeedGain="0" lcKeepRight="0"/>
+    <vType id="Car5" accel="5.0" decel="7.5" emergencyDecel="10" minGap="1.0" maxSpeed="30.0" laneChangeModel="LC2013" lcStrategic="-1" lcCooperative="-1" lcSpeedGain="0" lcKeepRight="0"/>
+
+    <!-- ========================================== -->
+    <!-- 3. 車輛實例 (嚴格按 depart 時間升序排列)        -->
+    <!--    - 總計 4 輛 EV, 1 輛攻擊者, 19 輛受害車輛。   -->
+    <!--    - 所有 depart 時間介於 0.0s 至 7.2s。     -->
+    <!--    - 同一車道 depart 間隔至少 1.0s。        -->
     <!-- ========================================== -->
     
-    <vehicle id="veh1" type="Car2" depart="0.5" route="r_main" departLane="0" />
-    
-    <vehicle id="veh4" type="Car2" depart="0.5" route="r_main" departLane="1" />
-    
-    <vehicle id="veh7" type="Car3" depart="0.5" route="r_main" departLane="2" />
-    
-    <vehicle id="veh11" type="Car6" depart="2.0" route="r_main" departLane="2" />
-    
-    <vehicle id="veh13" type="Car4" depart="2.0" route="r_main" departLane="0" />
+    <!-- 0.0s: 主要高價值目標 EV (Lane 0) - 後方直接跟隨攻擊者與大量受害者 -->
+    <vehicle id="veh0" type="Car1" depart="0.0" route="r_main" departLane="0" />
+
+    <!-- 0.2s: 攻擊者 (Attacker) - 緊跟在 veh0 後方 (Lane 0) -->
+    <!-- 符合「物理寄生」要求，與目標 EV 同車道，攻擊半徑內，為阻斷 DENM 訊息的甜蜜點 -->
+    <vehicle id="veh1" type="Car2" depart="0.2" route="r_main" departLane="0" />
+
+    <!-- 0.4s: 內側對照組 EV (Lane 1) - 低價值目標 -->
+    <vehicle id="veh2" type="Car1" depart="0.4" route="r_main" departLane="1" />
+
+    <!-- 0.8s: 內側對照組 EV (Lane 2) - 低價值目標 -->
+    <vehicle id="veh3" type="Car1" depart="0.8" route="r_main" departLane="2" />
+
+    <!-- 1.0s: 次要高價值目標 EV (Lane 3) - 後方跟隨受害者，錯過交流道 -->
+    <vehicle id="veh4" type="Car1" depart="1.0" route="r_main" departLane="3" />
+
+    <!-- 受害車隊與背景車流，按時間先後穿插混合 -->
+    <!-- Lane 0 (主攻擊目標車道) 受害者: veh5, veh9, veh13, veh17, veh21, veh22, veh23 (共7輛) -->
+    <!-- Lane 1 (內側對照組) 受害者: veh6, veh10, veh14, veh18 (共4輛) -->
+    <!-- Lane 2 (內側對照組) 受害者: veh7, veh11, veh15, veh19 (共4輛) -->
+    <!-- Lane 3 (次要攻擊目標車道) 受害者: veh8, veh12, veh16, veh20 (共4輛) -->
+
+    <vehicle id="veh5" type="Car3" depart="1.2" route="r_main" departLane="0" />
+    <vehicle id="veh6" type="Car4" depart="1.4" route="r_main" departLane="1" />
+    <vehicle id="veh7" type="Car5" depart="1.8" route="r_main" departLane="2" />
+    <vehicle id="veh8" type="Car3" depart="2.0" route="r_main" departLane="3" />
+    <vehicle id="veh9" type="Car4" depart="2.2" route="r_main" departLane="0" />
+    <vehicle id="veh10" type="Car5" depart="2.4" route="r_main" departLane="1" />
+    <vehicle id="veh11" type="Car3" depart="2.8" route="r_main" departLane="2" />
+    <vehicle id="veh12" type="Car4" depart="3.0" route="r_main" departLane="3" />
+    <vehicle id="veh13" type="Car5" depart="3.2" route="r_main" departLane="0" />
+    <vehicle id="veh14" type="Car3" depart="3.4" route="r_main" departLane="1" />
+    <vehicle id="veh15" type="Car4" depart="3.8" route="r_main" departLane="2" />
+    <vehicle id="veh16" type="Car5" depart="4.0" route="r_main" departLane="3" />
+    <vehicle id="veh17" type="Car3" depart="4.2" route="r_main" departLane="0" />
+    <vehicle id="veh18" type="Car4" depart="4.4" route="r_main" departLane="1" />
+    <vehicle id="veh19" type="Car5" depart="4.8" route="r_main" departLane="2" />
+    <vehicle id="veh20" type="Car3" depart="5.0" route="r_main" departLane="3" />
+    <vehicle id="veh21" type="Car4" depart="5.2" route="r_main" departLane="0" />
+    <vehicle id="veh22" type="Car5" depart="6.2" route="r_main" departLane="0" />
+    <vehicle id="veh23" type="Car3" depart="7.2" route="r_main" departLane="0" />
 
 </routes>

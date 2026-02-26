@@ -1,3 +1,17 @@
-Error: Answered with error to command 0xa4: Vehicle 'veh4' is not known.
+Warning: Route file should be sorted by departure time, ignoring 'veh2'!
+Warning: Route file should be sorted by departure time, ignoring 'veh3'!
+Warning: Route file should be sorted by departure time, ignoring 'veh6'!
+Warning: Route file should be sorted by departure time, ignoring 'veh7'!
+Warning: Route file should be sorted by departure time, ignoring 'veh9'!
+Warning: Route file should be sorted by departure time, ignoring 'veh10'!
+Warning: Route file should be sorted by departure time, ignoring 'veh12'!
+Warning: Route file should be sorted by departure time, ignoring 'veh13'!
+Warning: Route file should be sorted by departure time, ignoring 'veh15'!
+Warning: Route file should be sorted by departure time, ignoring 'veh16'!
+Warning: Route file should be sorted by departure time, ignoring 'veh18'!
+Warning: Route file should be sorted by departure time, ignoring 'veh19'!
+Warning: Route file should be sorted by departure time, ignoring 'veh21'!
+Warning: Route file should be sorted by departure time, ignoring 'veh22'!
+Error: Answered with error to command 0xa4: Vehicle 'veh3' is not known.
 Error: tcpip::Socket::recvAndCheck @ recv: peer shutdown
 Quitting (on error).

@@ -41,6 +41,7 @@ class emergencyVehicleAlert : public Application
     void vehicleTypeInit();
     int shouldEnterForkRoad=2;
     void SwitchToSideRoad();
+    void SwitchToForkRoad ();
     void SwitchToMainRoad();
     void monitorVehicleRoutePeriodic ();
 
