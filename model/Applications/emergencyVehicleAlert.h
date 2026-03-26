@@ -148,11 +148,14 @@ class emergencyVehicleAlert : public Application
      *
      */
     std::string sim_type;
+    double attack_min_duration;
+    double attack_max_duration;
     void SetMaxSpeed ();
     void RestoreSpeed (std::string senderVehicleId);
     void AttackerProcedureTrigger();
     void AttackerSelectVictim();
     void SetAttackerSpeed();
+    void reset_victim_status();
     vehicleData_t translateCPMV1data(asn1cpp::Seq<CPMV1> cpm, int objectIndex);
     vehicleData_t translateCPMdata(asn1cpp::Seq<CollectivePerceptionMessage> cpm,asn1cpp::Seq<PerceivedObject> object, int objectIndex);
     void CheckDistanceAndRestore(std::string senderVehicleId);
@@ -183,7 +186,7 @@ class emergencyVehicleAlert : public Application
     int m_denm_received;
 
     EventId m_speed_ev; //!< Event to change the vehicle speed
-    EventId m_send_denm_ev; //!< Event to send the DENM
+    EventId m_reset_victim_ev; //!< Event to reset the victim status
     EventId m_send_cam_ev; //!< Event to send the CAM
     EventId m_update_denm_ev; //!< Event to update the DENM
     EventId m_range_check_ev; //定期重置顏色

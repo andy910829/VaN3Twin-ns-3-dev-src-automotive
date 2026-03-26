@@ -113,6 +113,8 @@ main (int argc, char *argv[])
   std::string sumo_netstate_file_name;
   bool vehicle_vis = false;
   std::string sim_type = "AI_mode";
+  double attack_min_duration;
+  double attack_max_duration;
 
   int numberOfNodes;
   uint32_t nodeCounter = 0;
@@ -150,6 +152,7 @@ main (int argc, char *argv[])
   bool enableChannelRandomness = false;
   uint16_t channelUpdatePeriod = 500; //ms
   uint8_t mcs = 14;
+  int epoch = 0;
 
   /*
    * From here, we instruct the ns3::CommandLine class of all the input parameters
@@ -159,6 +162,9 @@ main (int argc, char *argv[])
   CommandLine cmd;
 
   /* Cmd Line option for application */
+  cmd.AddValue ("epoch", "Epoch number", epoch);
+  cmd.AddValue ("attack_max_duration", "Duration of the attack in seconds", attack_max_duration);
+  cmd.AddValue ("attack_min_duration", "Minimum duration of the attack in seconds", attack_min_duration);
   cmd.AddValue ("sim_type", "Type of simulation: AI_mode or Random_mode", sim_type);
   cmd.AddValue ("realtime", "Use the realtime scheduler or not", realtime);
   cmd.AddValue ("sumo-gui", "Use SUMO gui or not", sumo_gui);
@@ -685,6 +691,8 @@ main (int argc, char *argv[])
   EmergencyVehicleAlertHelper.SetAttribute ("Model", StringValue ("nrv2x"));
   EmergencyVehicleAlertHelper.SetAttribute ("MetricSupervisor", PointerValue (metSup));
   EmergencyVehicleAlertHelper.SetAttribute ("sim_type", StringValue (sim_type));
+  EmergencyVehicleAlertHelper.SetAttribute ("attack_max_duration", DoubleValue (attack_max_duration));
+  EmergencyVehicleAlertHelper.SetAttribute ("attack_min_duration", DoubleValue (attack_min_duration));
 
   /* callback function for node creation */
   int i = 0;
@@ -729,7 +737,7 @@ main (int argc, char *argv[])
   /* start traci client with given function pointers */
   sumoClient->SumoSetup (setupNewWifiNode, shutdownWifiNode);
   char *res;
-  json message = {{"type", "start_application"}, {"sim_type", sim_type}};
+  json message = {{"type", "start_application"}, {"epoch", epoch}, {"sim_type", sim_type}, {"attack_min_duration", attack_min_duration}, {"attack_max_duration", attack_max_duration}};
   res = socketClientFunction (message.dump ().c_str ());
   // res = "OK";
   if (std::string (res) != "OK")
