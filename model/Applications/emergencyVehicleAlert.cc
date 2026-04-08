@@ -131,7 +131,11 @@ emergencyVehicleAlert::GetTypeId (void)
           .AddAttribute ("attack_max_duration", "Maximum duration of the attack in seconds",
                          DoubleValue (10.0),
                          MakeDoubleAccessor (&emergencyVehicleAlert::attack_max_duration),
-                         MakeDoubleChecker<double> ());
+                         MakeDoubleChecker<double> ())
+          .AddAttribute ("random_index", "Random index for the random mode attack",
+                         IntegerValue (1),
+                         MakeIntegerAccessor (&emergencyVehicleAlert::random_index),
+                         MakeIntegerChecker<int> (0));
   return tid;
 }
 
@@ -178,7 +182,8 @@ emergencyVehicleAlert::vehicleTypeInit ()
   // 檢查檔案是否成功開啟
   if (!f.is_open ())
     {
-      std::cerr << "無法開啟檔案 data.json" << std::endl;
+      std::cerr << "Cannot open file vehicle_types.json" << std::endl;
+      std::cerr << "無法開啟檔案 vehicle_types.json" << std::endl;
       return;
     }
 
@@ -190,15 +195,40 @@ emergencyVehicleAlert::vehicleTypeInit ()
     }
   catch (json::parse_error &e)
     {
-      std::cerr << "JSON 解析錯誤: " << e.what () << std::endl;
+      std::cerr << "JSON parse error in vehicleTypeInit: " << e.what () << std::endl;
       return;
     }
-  attacker_id = data["attacker_id"];
-  for (const auto &ev : data["emergency_vehicles"])
+  catch (const std::exception &e)
     {
-      std::string id = ev["id"];
-      veh_set.insert (id);
+      std::cerr << "Unexpected error during JSON parsing: " << e.what () << std::endl;
+      return;
     }
+
+  try
+    {
+      attacker_id = data["attacker_id"];
+    }
+  catch (const std::exception &e)
+    {
+      std::cout << "[WARN] Failed to read attacker_id from JSON: " << e.what () << std::endl;
+      attacker_id = "";
+    }
+
+  try
+    {
+      for (const auto &ev : data["emergency_vehicles"])
+        {
+          std::string id = ev["id"];
+          veh_set.insert (id);
+        }
+    }
+  catch (const std::exception &e)
+    {
+      std::cout << "[WARN] Failed to read emergency_vehicles from JSON: " << e.what () << std::endl;
+    }
+
+  std::cout << "[INFO] vehicleTypeInit completed. Attacker: " << attacker_id
+            << ", Emergency vehicles: " << veh_set.size () << std::endl;
 }
 
 void
@@ -218,17 +248,26 @@ emergencyVehicleAlert::StartApplication (void)
   //           << std::endl;
   vehicleTypeInit ();
   m_id = m_client->GetVehicleId (this->GetNode ());
-  m_type = m_client->TraCIAPI::vehicle.getVehicleClass (m_id);
-  m_max_speed = m_client->TraCIAPI::vehicle.getMaxSpeed (m_id);
 
-  string LaneIndex = m_client->TraCIAPI::vehicle.getLaneID (m_id);
-  string vehicleType = m_client->TraCIAPI::vehicle.getTypeID (m_id);
+  try
+    {
+      m_type = m_client->TraCIAPI::vehicle.getVehicleClass (m_id);
+      m_max_speed = m_client->TraCIAPI::vehicle.getMaxSpeed (m_id);
 
-  m_client->TraCIAPI::vehicletype.setMinGap (vehicleType, 0.1);
-  m_client->TraCIAPI::vehicletype.setTau (vehicleType, 0.1);
-  m_client->TraCIAPI::vehicletype.setDecel (vehicleType, 6.0);
-  m_client->TraCIAPI::vehicletype.setAccel (vehicleType, 3.0);
-  double currentMinGap = m_client->TraCIAPI::vehicle.getMinGap (m_id);
+      string LaneIndex = m_client->TraCIAPI::vehicle.getLaneID (m_id);
+      string vehicleType = m_client->TraCIAPI::vehicle.getTypeID (m_id);
+
+      m_client->TraCIAPI::vehicletype.setMinGap (vehicleType, 0.1);
+      m_client->TraCIAPI::vehicletype.setTau (vehicleType, 0.1);
+      m_client->TraCIAPI::vehicletype.setDecel (vehicleType, 6.0);
+      m_client->TraCIAPI::vehicletype.setAccel (vehicleType, 3.0);
+      double currentMinGap = m_client->TraCIAPI::vehicle.getMinGap (m_id);
+    }
+  catch (const std::exception &e)
+    {
+      std::cerr << "Failed to initialize vehicle " << m_id << ": " << e.what () << std::endl;
+      return;
+    }
 
   VDP *traci_vdp = new VDPTraCI (m_client, m_id);
   //Create LDM and sensor object
@@ -469,24 +508,24 @@ emergencyVehicleAlert::receiveCAM (asn1cpp::Seq<CAM> cam, Address from)
       long timestamp_ms = Simulator::Now ().GetMilliSeconds ();
 
       int lane_ID = -1;
-      std::pair<std::string, double> leaderInfo =
-          m_client->TraCIAPI::vehicle.getLeader (vehicle_id, denm_transmit_distance);
-
       std::string leaderID = "";
       double gap = -1.0;
+
       try
         {
-          // 這裡非常危險，如果發送 CAM 的車剛好消失，這裡會崩潰
-          lane_ID = m_client->TraCIAPI::vehicle.getLaneIndex (vehicle_id);
-
           std::pair<std::string, double> leaderInfo =
               m_client->TraCIAPI::vehicle.getLeader (vehicle_id, denm_transmit_distance);
           leaderID = leaderInfo.first;
           gap = leaderInfo.second;
+
+          // 獲取車道索引
+          lane_ID = m_client->TraCIAPI::vehicle.getLaneIndex (vehicle_id);
         }
-      catch (...)
+      catch (const std::exception &e)
         {
           // 如果車輛已消失，忽略此 CAM 封包，不要崩潰
+          std::cout << "[DEBUG] Sender vehicle " << vehicle_id << " no longer exists: " << e.what ()
+                    << std::endl;
           return;
         }
       json CAM_json = {{"message_type", "CAM"},     {"vehicle_id", vehicle_id},
@@ -624,7 +663,20 @@ emergencyVehicleAlert::receiveDENM (denData denm, Address from)
   long timestamp_ms = Simulator::Now ().GetMilliSeconds ();
   uint32_t senderId = mgmt.stationID;
   string senderVehicleId = "veh" + to_string (senderId);
-  string myLaneIndex = m_client->TraCIAPI::vehicle.getLaneID (m_id);
+
+  // 先检查接收者自己是否还在场景中
+  string myLaneIndex;
+  try
+    {
+      myLaneIndex = m_client->TraCIAPI::vehicle.getLaneID (m_id);
+    }
+  catch (const std::exception &e)
+    {
+      std::cout << "[DEBUG] Receiver vehicle " << m_id << " no longer exists: " << e.what ()
+                << std::endl;
+      return;
+    }
+
   string senderLaneIndex = "";
   libsumo::TraCIPosition pos;
   double speed_mps;
@@ -659,8 +711,17 @@ emergencyVehicleAlert::receiveDENM (denData denm, Address from)
   };
   json_queue.push (DENM_sender_json);
 
-  libsumo::TraCIPosition myPos = m_client->TraCIAPI::vehicle.getPosition (m_id);
-  myPos = m_client->TraCIAPI::simulation.convertXYtoLonLat (myPos.x, myPos.y);
+  libsumo::TraCIPosition myPos;
+  try
+    {
+      myPos = m_client->TraCIAPI::vehicle.getPosition (m_id);
+      myPos = m_client->TraCIAPI::simulation.convertXYtoLonLat (myPos.x, myPos.y);
+    }
+  catch (const std::exception &e)
+    {
+      std::cout << "[DEBUG] Failed to get receiver position: " << e.what () << std::endl;
+      return;
+    }
   libsumo::TraCIPosition attackerPos;
 
   try
@@ -697,7 +758,15 @@ emergencyVehicleAlert::receiveDENM (denData denm, Address from)
       alertColor.g = 255; // Green
       alertColor.b = 0; // Blue
       alertColor.a = 255; // Alpha (不透明)
-      m_client->TraCIAPI::vehicle.setColor (m_id, alertColor);
+      try
+        {
+          m_client->TraCIAPI::vehicle.setColor (m_id, alertColor);
+        }
+      catch (const std::exception &e)
+        {
+          std::cout << "[DEBUG] Failed to set vehicle color in first condition: " << e.what ()
+                    << std::endl;
+        }
       return;
     }
   else if (m_type == "Attacker")
@@ -712,15 +781,39 @@ emergencyVehicleAlert::receiveDENM (denData denm, Address from)
       alertColor.g = 255; // Green
       alertColor.b = 0; // Blue
       alertColor.a = 255; // Alpha (不透明)
-      m_client->TraCIAPI::vehicle.setColor (m_id, alertColor);
+      try
+        {
+          m_client->TraCIAPI::vehicle.setColor (m_id, alertColor);
+        }
+      catch (const std::exception &e)
+        {
+          NS_LOG_DEBUG ("Failed to set vehicle color in second condition: " << e.what ());
+        }
     }
-  std::pair<std::string, double> leaderInfo =
-      m_client->TraCIAPI::vehicle.getLeader (m_id, denm_transmit_distance);
+
+  std::pair<std::string, double> leaderInfo;
+  try
+    {
+      leaderInfo = m_client->TraCIAPI::vehicle.getLeader (m_id, denm_transmit_distance);
+    }
+  catch (const std::exception &e)
+    {
+      NS_LOG_DEBUG ("Failed to get leader info for receiver: " << e.what ());
+      return;
+    }
   std::string leaderID = leaderInfo.first;
   if (leaderID == attacker_id)
     {
-      leaderInfo = m_client->TraCIAPI::vehicle.getLeader (attacker_id, denm_transmit_distance);
-      leaderID = leaderInfo.first;
+      try
+        {
+          leaderInfo = m_client->TraCIAPI::vehicle.getLeader (attacker_id, denm_transmit_distance);
+          leaderID = leaderInfo.first;
+        }
+      catch (const std::exception &e)
+        {
+          NS_LOG_DEBUG ("Failed to get leader info for attacker: " << e.what ());
+          leaderID = "";
+        }
     }
   double gap = leaderInfo.second;
   double distance = appUtil_haversineDist (myPos.y, myPos.x, pos.y, pos.x);
@@ -736,7 +829,15 @@ emergencyVehicleAlert::receiveDENM (denData denm, Address from)
           slowdownColor.g = 0;
           slowdownColor.b = 0;
           slowdownColor.a = 255;
-          m_client->TraCIAPI::vehicle.setColor (m_id, slowdownColor);
+          try
+            {
+              m_client->TraCIAPI::vehicle.setColor (m_id, slowdownColor);
+            }
+          catch (const std::exception &e)
+            {
+              NS_LOG_DEBUG ("Failed to set color in receiveDENM: " << e.what ());
+            }
+
           if (shouldEnterForkRoad != 3 &&
               (myLaneIndex.back () == '1' || myLaneIndex.back () == '2'))
             {
@@ -752,7 +853,6 @@ emergencyVehicleAlert::receiveDENM (denData denm, Address from)
               double distanceToSender = appUtil_haversineDist (myPos.y, myPos.x, pos.y, pos.x);
               double safety_distance = denm_transmit_distance + 10;
               double speedReduction = (safety_distance - distanceToSender) / safety_distance;
-              double currentSpeed = m_client->TraCIAPI::vehicle.getSpeed (m_id);
               double targetSpeed;
 
               double minSpeed = 2.0;
@@ -760,8 +860,23 @@ emergencyVehicleAlert::receiveDENM (denData denm, Address from)
               double ratio = (distanceToSender - min_gap) / (safety_distance - min_gap);
               targetSpeed = speed_mps * ratio;
 
-              m_client->TraCIAPI::vehicle.setSpeed (m_id, targetSpeed);
-              m_client->TraCIAPI::vehicle.slowDown (m_id, speed_mps - 5, 0.5);
+              try
+                {
+                  m_client->TraCIAPI::vehicle.setSpeed (m_id, targetSpeed);
+                }
+              catch (const std::exception &e)
+                {
+                  NS_LOG_DEBUG ("Failed to set speed in receiveDENM: " << e.what ());
+                }
+
+              try
+                {
+                  m_client->TraCIAPI::vehicle.slowDown (m_id, speed_mps - 5, 0.5);
+                }
+              catch (const std::exception &e)
+                {
+                  NS_LOG_DEBUG ("Failed to slow down in receiveDENM: " << e.what ());
+                }
             }
         }
     }
@@ -793,37 +908,119 @@ emergencyVehicleAlert::AttackerProcedureTrigger ()
 void
 emergencyVehicleAlert::QueryAllVehiclesAndLeaders ()
 {
-  std::vector<std::string> vehicleIDs = m_client->TraCIAPI::vehicle.getIDList ();
+  std::vector<std::string> vehicleIDs;
+  try
+    {
+      vehicleIDs = m_client->TraCIAPI::vehicle.getIDList ();
+    }
+  catch (const std::exception &e)
+    {
+      NS_LOG_WARN ("Failed to get vehicle list: " << e.what ());
+      Simulator::Remove (m_query_all_vehicles_ev);
+      m_query_all_vehicles_ev = Simulator::Schedule (
+          Seconds (0.1), &emergencyVehicleAlert::QueryAllVehiclesAndLeaders, this);
+      return;
+    }
 
   json vehicles_info = json::array ();
   json message;
 
+  // 建立一個 Lambda 函數，將浮點數四捨五入到小數點後 4 位
+  auto round4 = [] (double val) { return std::round (val * 10000.0) / 10000.0; };
   for (const std::string &vehicleID : vehicleIDs)
     {
       try
         {
-          libsumo::TraCIPosition pos = m_client->TraCIAPI::vehicle.getPosition (vehicleID);
-          pos = m_client->TraCIAPI::simulation.convertXYtoLonLat (pos.x, pos.y);
-          double speed_mps = m_client->TraCIAPI::vehicle.getSpeed (vehicleID);
+          libsumo::TraCIPosition pos;
+          try
+            {
+              pos = m_client->TraCIAPI::vehicle.getPosition (vehicleID);
+            }
+          catch (const std::exception &e)
+            {
+              NS_LOG_DEBUG ("Vehicle " << vehicleID << " disappeared while querying position");
+              continue;
+            }
 
-          double acceleration_mps2 = m_client->TraCIAPI::vehicle.getAcceleration (vehicleID);
+          try
+            {
+              pos = m_client->TraCIAPI::simulation.convertXYtoLonLat (pos.x, pos.y);
+            }
+          catch (const std::exception &e)
+            {
+              NS_LOG_DEBUG ("Failed to convert coordinates for " << vehicleID << ": " << e.what ());
+              continue;
+            }
 
-          double angle = m_client->TraCIAPI::vehicle.getAngle (vehicleID);
+          double speed_mps;
+          try
+            {
+              speed_mps = m_client->TraCIAPI::vehicle.getSpeed (vehicleID);
+            }
+          catch (const std::exception &e)
+            {
+              NS_LOG_DEBUG ("Vehicle " << vehicleID << " disappeared while querying speed");
+              continue;
+            }
 
-          int lane_ID = m_client->TraCIAPI::vehicle.getLaneIndex (vehicleID);
+          double acceleration_mps2;
+          try
+            {
+              acceleration_mps2 = m_client->TraCIAPI::vehicle.getAcceleration (vehicleID);
+            }
+          catch (const std::exception &e)
+            {
+              NS_LOG_DEBUG ("Failed to get acceleration for " << vehicleID << ": " << e.what ());
+              acceleration_mps2 = 0.0;
+            }
 
-          std::pair<std::string, double> leaderInfo =
-              m_client->TraCIAPI::vehicle.getLeader (vehicleID, 100.0);
+          double angle;
+          try
+            {
+              angle = m_client->TraCIAPI::vehicle.getAngle (vehicleID);
+            }
+          catch (const std::exception &e)
+            {
+              NS_LOG_DEBUG ("Failed to get angle for " << vehicleID << ": " << e.what ());
+              angle = 0.0;
+            }
+
+          int lane_ID;
+          try
+            {
+              lane_ID = m_client->TraCIAPI::vehicle.getLaneIndex (vehicleID);
+            }
+          catch (const std::exception &e)
+            {
+              NS_LOG_DEBUG ("Failed to get lane ID for " << vehicleID << ": " << e.what ());
+              lane_ID = -1;
+            }
+
+          std::string leader_ID;
+          double gap_to_leader;
+          try
+            {
+              std::pair<std::string, double> leaderInfo =
+                  m_client->TraCIAPI::vehicle.getLeader (vehicleID, 100.0);
+              leader_ID = leaderInfo.first;
+              gap_to_leader = leaderInfo.second;
+            }
+          catch (const std::exception &e)
+            {
+              NS_LOG_DEBUG ("Failed to get leader info for " << vehicleID << ": " << e.what ());
+              leader_ID = "";
+              gap_to_leader = -1.0;
+            }
 
           json vehicle_json = {{"vehicle_id", vehicleID},
-                               {"latitude", pos.y},
-                               {"longitude", pos.x},
-                               {"speed_mps", speed_mps},
-                               {"acceleration_mps2", acceleration_mps2},
+                               {"latitude", round4 (pos.y)},
+                               {"longitude", round4 (pos.x)},
+                               {"speed_mps", round4 (speed_mps)},
+                               {"acceleration_mps2", round4 (acceleration_mps2)},
                                {"heading", static_cast<int> (angle)},
                                {"lane_ID", lane_ID},
-                               {"leader_ID", leaderInfo.first},
-                               {"gap_to_leader", leaderInfo.second},
+                               {"leader_ID", leader_ID},
+                               {"gap_to_leader", round4 (gap_to_leader)},
                                {"timestamp", Simulator::Now ().GetMilliSeconds ()},
                                {"target_vehicle_id", victim_m_id}};
 
@@ -831,7 +1028,7 @@ emergencyVehicleAlert::QueryAllVehiclesAndLeaders ()
         }
       catch (const std::exception &e)
         {
-          std::cerr << "Error querying vehicle " << vehicleID << ": " << e.what () << std::endl;
+          NS_LOG_ERROR ("Unexpected error processing vehicle " << vehicleID << ": " << e.what ());
         }
     }
   message = {{"type", "query_all_vehicles"}, {"vehicles_info", vehicles_info}};
@@ -844,8 +1041,9 @@ emergencyVehicleAlert::QueryAllVehiclesAndLeaders ()
       m_query_all_vehicles_ev = Simulator::Schedule (
           Seconds (0.1), &emergencyVehicleAlert::QueryAllVehiclesAndLeaders, this);
     }
-  catch (...)
+  catch (const std::exception &e)
     {
+      NS_LOG_WARN ("socketClientFunction failed: " << e.what ());
       m_query_all_vehicles_ev = Simulator::Schedule (
           Seconds (0.1), &emergencyVehicleAlert::QueryAllVehiclesAndLeaders, this);
     }
@@ -861,28 +1059,135 @@ emergencyVehicleAlert::SetAttackerSpeed ()
     }
   else
     {
+      if (veh_set.empty ())
+        {
+          NS_LOG_WARN ("No target vehicle available - veh_set is empty");
+          return;
+        }
       target_id = veh_set.begin ()->c_str ();
     }
   try
     {
-      libsumo::TraCIPosition myPos = m_client->TraCIAPI::vehicle.getPosition (m_id);
-      libsumo::TraCIPosition myGeo =
-          m_client->TraCIAPI::simulation.convertXYtoLonLat (myPos.x, myPos.y);
+      // 檢查目標車輛是否存在(檢查一次即可)
+      try
+        {
+          m_client->TraCIAPI::vehicle.getSpeed (target_id);
+        }
+      catch (...)
+        {
+          NS_LOG_WARN ("Target vehicle '" << target_id << "' no longer exists in SUMO");
+          victim_m_id = "";
+          Simulator::Remove (m_set_attacker_speed_ev);
+          return;
+        }
 
-      libsumo::TraCIPosition vicPos = m_client->TraCIAPI::vehicle.getPosition (target_id);
-      libsumo::TraCIPosition vicGeo =
-          m_client->TraCIAPI::simulation.convertXYtoLonLat (vicPos.x, vicPos.y);
+      libsumo::TraCIPosition myPos;
+      try
+        {
+          myPos = m_client->TraCIAPI::vehicle.getPosition (m_id);
+        }
+      catch (const std::exception &e)
+        {
+          NS_LOG_WARN ("Failed to get attacker position: " << e.what ());
+          return;
+        }
+
+      libsumo::TraCIPosition myGeo;
+      try
+        {
+          myGeo = m_client->TraCIAPI::simulation.convertXYtoLonLat (myPos.x, myPos.y);
+        }
+      catch (const std::exception &e)
+        {
+          NS_LOG_WARN ("Failed to convert attacker coordinates: " << e.what ());
+          return;
+        }
+
+      libsumo::TraCIPosition vicPos;
+      try
+        {
+          vicPos = m_client->TraCIAPI::vehicle.getPosition (target_id);
+        }
+      catch (const std::exception &e)
+        {
+          NS_LOG_WARN ("Failed to get victim position: " << e.what ());
+          victim_m_id = "";
+          Simulator::Remove (m_set_attacker_speed_ev);
+          return;
+        }
+
+      libsumo::TraCIPosition vicGeo;
+      try
+        {
+          vicGeo = m_client->TraCIAPI::simulation.convertXYtoLonLat (vicPos.x, vicPos.y);
+        }
+      catch (const std::exception &e)
+        {
+          NS_LOG_WARN ("Failed to convert victim coordinates: " << e.what ());
+          return;
+        }
 
       double dist = appUtil_haversineDist (myGeo.y, myGeo.x, vicGeo.y, vicGeo.x);
 
-      double my_lane_pos = m_client->TraCIAPI::vehicle.getLanePosition (m_id);
-      double vic_lane_pos = m_client->TraCIAPI::vehicle.getLanePosition (target_id);
-      string my_edge = m_client->TraCIAPI::vehicle.getRoadID (m_id);
-      string vic_edge = m_client->TraCIAPI::vehicle.getRoadID (target_id);
+      double my_lane_pos;
+      try
+        {
+          my_lane_pos = m_client->TraCIAPI::vehicle.getLanePosition (m_id);
+        }
+      catch (const std::exception &e)
+        {
+          NS_LOG_WARN ("Failed to get attacker lane position: " << e.what ());
+          return;
+        }
+
+      double vic_lane_pos;
+      try
+        {
+          vic_lane_pos = m_client->TraCIAPI::vehicle.getLanePosition (target_id);
+        }
+      catch (const std::exception &e)
+        {
+          NS_LOG_WARN ("Failed to get victim lane position: " << e.what ());
+          victim_m_id = "";
+          return;
+        }
+
+      string my_edge;
+      try
+        {
+          my_edge = m_client->TraCIAPI::vehicle.getRoadID (m_id);
+        }
+      catch (const std::exception &e)
+        {
+          NS_LOG_WARN ("Failed to get attacker road ID: " << e.what ());
+          return;
+        }
+
+      string vic_edge;
+      try
+        {
+          vic_edge = m_client->TraCIAPI::vehicle.getRoadID (target_id);
+        }
+      catch (const std::exception &e)
+        {
+          NS_LOG_WARN ("Failed to get victim road ID: " << e.what ());
+          victim_m_id = "";
+          return;
+        }
 
       bool is_overtaking = (my_edge == vic_edge) && (my_lane_pos > vic_lane_pos);
 
-      double vic_speed = m_client->TraCIAPI::vehicle.getSpeed (target_id);
+      double vic_speed;
+      try
+        {
+          vic_speed = m_client->TraCIAPI::vehicle.getSpeed (target_id);
+        }
+      catch (const std::exception &e)
+        {
+          NS_LOG_WARN ("Failed to get victim speed: " << e.what ());
+          victim_m_id = "";
+          return;
+        }
 
       double target_gap = 5.0;
       double tolerance = 3.0;
@@ -890,19 +1195,6 @@ emergencyVehicleAlert::SetAttackerSpeed ()
       double fall_back_factor = 0.7;
 
       double target_speed;
-
-      // if (is_overtaking)
-      //   {
-      //     target_speed = vic_speed * 0.5;
-      //     if (target_speed < 1.0)
-      //       target_speed = 0.0;
-      //   }
-      // else if (dist > target_gap + tolerance)
-      //   {
-      //     target_speed = std::min (m_max_speed, vic_speed + catch_up_speed);
-      //     if (target_speed < 2.0)
-      //       target_speed = 5.0;
-      //   }
       if (dist > target_gap + tolerance)
         {
           target_speed = std::min (m_max_speed, vic_speed + catch_up_speed);
@@ -920,7 +1212,16 @@ emergencyVehicleAlert::SetAttackerSpeed ()
           target_speed = vic_speed;
         }
 
-      m_client->TraCIAPI::vehicle.setSpeed (m_id, target_speed);
+      try
+        {
+          m_client->TraCIAPI::vehicle.setSpeed (m_id, target_speed);
+        }
+      catch (const std::exception &e)
+        {
+          NS_LOG_WARN ("Failed to set attacker speed: " << e.what ());
+          return;
+        }
+
       Simulator::Remove (m_set_attacker_speed_ev);
       m_set_attacker_speed_ev =
           Simulator::Schedule (Seconds (0.5), &emergencyVehicleAlert::SetAttackerSpeed, this);
@@ -961,15 +1262,33 @@ emergencyVehicleAlert::AttackerSelectVictim ()
     {
       json_array.push_back (pair.second);
     }
-  libsumo::TraCIPosition pos = m_client->TraCIAPI::vehicle.getPosition (m_id);
-  pos = m_client->TraCIAPI::simulation.convertXYtoLonLat (pos.x, pos.y);
 
-  double speed_mps = m_client->TraCIAPI::vehicle.getSpeed (m_id);
+  libsumo::TraCIPosition pos;
+  double speed_mps;
+  double acceleration_mps2;
+  double angle;
+  int heading;
 
-  double acceleration_mps2 = m_client->TraCIAPI::vehicle.getAcceleration (m_id);
+  try
+    {
+      pos = m_client->TraCIAPI::vehicle.getPosition (m_id);
+      pos = m_client->TraCIAPI::simulation.convertXYtoLonLat (pos.x, pos.y);
 
-  double angle = m_client->TraCIAPI::vehicle.getAngle (m_id);
-  int heading = static_cast<int> (angle);
+      speed_mps = m_client->TraCIAPI::vehicle.getSpeed (m_id);
+
+      acceleration_mps2 = m_client->TraCIAPI::vehicle.getAcceleration (m_id);
+
+      angle = m_client->TraCIAPI::vehicle.getAngle (m_id);
+      heading = static_cast<int> (angle);
+    }
+  catch (const std::exception &e)
+    {
+      NS_LOG_WARN ("Attacker vehicle "
+                   << m_id << " no longer exists in AttackerSelectVictim: " << e.what ());
+      Simulator::Remove (m_attacker_procedure_ev);
+      return;
+    }
+
   message = {{"type", "attacker_query"},
              {"attacker_info",
               {
@@ -995,18 +1314,20 @@ emergencyVehicleAlert::AttackerSelectVictim ()
         {
           // std::cout << "Random_mode attack launched at time " << timestamp_ms << std::endl;
           std::vector<std::string> veh_vector (veh_set.begin (), veh_set.end ());
-          std::random_device rd;
-          std::mt19937 gen (rd ());
-          std::uniform_int_distribution<> dis (0, veh_vector.size () - 1);
-          int random_index = dis (gen);
+          // std::random_device rd;
+          // std::mt19937 gen (rd ());
+          // std::uniform_int_distribution<> dis (0, veh_vector.size () - 1);
+          // int random_index = dis (gen);
           // int random_index = 3;
           victim_m_id = veh_vector[random_index];
-          float min_duration = attack_min_duration;
-          float max_duration = attack_max_duration;
-          std::uniform_real_distribution<float> duration_dis (min_duration, max_duration);
+          // float min_duration = attack_min_duration;
+          // float max_duration = attack_max_duration;
+          // std::uniform_real_distribution<float> duration_dis (min_duration, max_duration);
 
-          attack_duration = duration_dis (gen);
+          // attack_duration = duration_dis (gen);
           // attack_duration = 20.0;
+
+          attack_duration = attack_min_duration;
         }
       std::cout << "Attacker " << m_id << " selected victim " << victim_m_id << " for duration "
                 << attack_duration << " seconds." << std::endl;
@@ -1038,16 +1359,92 @@ emergencyVehicleAlert::CheckDistanceAndRestore (string senderVehicleId)
   m_monitored_vehicle_id = senderVehicleId;
   try
     {
-      libsumo::TraCIPosition myPos = m_client->TraCIAPI::vehicle.getPosition (m_id);
-      myPos = m_client->TraCIAPI::simulation.convertXYtoLonLat (myPos.x, myPos.y);
-      double currentSpeed = m_client->TraCIAPI::vehicle.getSpeed (m_id);
+      // 檢查發送者和接收者是否還在場景中
+      try
+        {
+          m_client->TraCIAPI::vehicle.getSpeed (m_id);
+          m_client->TraCIAPI::vehicle.getSpeed (senderVehicleId);
+        }
+      catch (const std::exception &e)
+        {
+          NS_LOG_WARN ("Vehicle missing in CheckDistanceAndRestore: " << e.what ());
+          m_monitored_vehicle_id = "";
+          Simulator::Remove (m_speed_ev);
+          return;
+        }
 
-      libsumo::TraCIPosition senderPos = m_client->TraCIAPI::vehicle.getPosition (senderVehicleId);
-      senderPos = m_client->TraCIAPI::simulation.convertXYtoLonLat (senderPos.x, senderPos.y);
-      double senderSpeed = m_client->TraCIAPI::vehicle.getSpeed (senderVehicleId);
+      libsumo::TraCIPosition myPos;
+      try
+        {
+          myPos = m_client->TraCIAPI::vehicle.getPosition (m_id);
+          myPos = m_client->TraCIAPI::simulation.convertXYtoLonLat (myPos.x, myPos.y);
+        }
+      catch (const std::exception &e)
+        {
+          NS_LOG_WARN ("Failed to get own position: " << e.what ());
+          return;
+        }
 
-      string senderLaneIndex = m_client->TraCIAPI::vehicle.getLaneID (senderVehicleId);
-      string myLaneIndex = m_client->TraCIAPI::vehicle.getLaneID (m_id);
+      double currentSpeed;
+      try
+        {
+          currentSpeed = m_client->TraCIAPI::vehicle.getSpeed (m_id);
+        }
+      catch (const std::exception &e)
+        {
+          NS_LOG_WARN ("Failed to get own speed: " << e.what ());
+          return;
+        }
+
+      libsumo::TraCIPosition senderPos;
+      try
+        {
+          senderPos = m_client->TraCIAPI::vehicle.getPosition (senderVehicleId);
+          senderPos = m_client->TraCIAPI::simulation.convertXYtoLonLat (senderPos.x, senderPos.y);
+        }
+      catch (const std::exception &e)
+        {
+          NS_LOG_WARN ("Failed to get sender position: " << e.what ());
+          m_monitored_vehicle_id = "";
+          Simulator::Remove (m_speed_ev);
+          return;
+        }
+
+      double senderSpeed;
+      try
+        {
+          senderSpeed = m_client->TraCIAPI::vehicle.getSpeed (senderVehicleId);
+        }
+      catch (const std::exception &e)
+        {
+          NS_LOG_WARN ("Failed to get sender speed: " << e.what ());
+          m_monitored_vehicle_id = "";
+          return;
+        }
+
+      string senderLaneIndex;
+      try
+        {
+          senderLaneIndex = m_client->TraCIAPI::vehicle.getLaneID (senderVehicleId);
+        }
+      catch (const std::exception &e)
+        {
+          NS_LOG_WARN ("Failed to get sender lane: " << e.what ());
+          m_monitored_vehicle_id = "";
+          return;
+        }
+
+      string myLaneIndex;
+      try
+        {
+          myLaneIndex = m_client->TraCIAPI::vehicle.getLaneID (m_id);
+        }
+      catch (const std::exception &e)
+        {
+          NS_LOG_WARN ("Failed to get own lane: " << e.what ());
+          return;
+        }
+
       if (senderLaneIndex.back () != myLaneIndex.back () || currentSpeed <= denm_veh_min_speed)
         {
           RestoreSpeed (senderVehicleId);
@@ -1074,7 +1471,14 @@ emergencyVehicleAlert::CheckDistanceAndRestore (string senderVehicleId)
           if (distanceToSender < min_gap)
             {
               targetSpeed = 0.0;
-              m_client->TraCIAPI::vehicle.setColor (m_id, slowdownColor); // 紅色
+              try
+                {
+                  m_client->TraCIAPI::vehicle.setColor (m_id, slowdownColor);
+                }
+              catch (const std::exception &e)
+                {
+                  NS_LOG_WARN ("Failed to set vehicle color: " << e.what ());
+                }
             }
           else
             {
@@ -1084,10 +1488,27 @@ emergencyVehicleAlert::CheckDistanceAndRestore (string senderVehicleId)
               if (targetSpeed < 0)
                 targetSpeed = 0;
 
-              m_client->TraCIAPI::vehicle.setColor (m_id, slowdownColor); // 橘色
+              try
+                {
+                  m_client->TraCIAPI::vehicle.setColor (m_id, slowdownColor);
+                }
+              catch (const std::exception &e)
+                {
+                  NS_LOG_WARN ("Failed to set vehicle color: " << e.what ());
+                }
             }
 
-          m_client->TraCIAPI::vehicle.slowDown (m_id, targetSpeed, 0.5);
+          try
+            {
+              m_client->TraCIAPI::vehicle.slowDown (m_id, targetSpeed, 0.5);
+            }
+          catch (const std::exception &e)
+            {
+              NS_LOG_WARN ("Failed to slow down vehicle: " << e.what ());
+              m_monitored_vehicle_id = "";
+              return;
+            }
+
           Simulator::Remove (m_speed_ev);
           m_speed_ev =
               Simulator::Schedule (Seconds (0.5), &emergencyVehicleAlert::CheckDistanceAndRestore,
@@ -1096,7 +1517,9 @@ emergencyVehicleAlert::CheckDistanceAndRestore (string senderVehicleId)
     }
   catch (const exception &e)
     {
-      // RestoreSpeed (senderVehicleId);
+      NS_LOG_ERROR ("Unexpected error in CheckDistanceAndRestore: " << e.what ());
+      m_monitored_vehicle_id = "";
+      Simulator::Remove (m_speed_ev);
     }
 }
 
@@ -1106,8 +1529,18 @@ emergencyVehicleAlert::TriggerEmergencyDenm ()
   denData data;
   DEN_ActionID_t actionid;
   DENBasicService_error_t trigger_retval;
-  libsumo::TraCIPosition pos = m_client->TraCIAPI::vehicle.getPosition (m_id);
-  pos = m_client->TraCIAPI::simulation.convertXYtoLonLat (pos.x, pos.y);
+  libsumo::TraCIPosition pos;
+  try
+    {
+      pos = m_client->TraCIAPI::vehicle.getPosition (m_id);
+      pos = m_client->TraCIAPI::simulation.convertXYtoLonLat (pos.x, pos.y);
+    }
+  catch (const std::exception &e)
+    {
+      NS_LOG_ERROR ("Failed to get position for DENM trigger: " << e.what ());
+      return;
+    }
+
   /* Set DENM mandatpry fields */
   data.setDenmMandatoryFields (compute_timestampIts (m_real_time), pos.x, pos.y);
   denData::denDataSituation situation_data;
@@ -1126,15 +1559,23 @@ emergencyVehicleAlert::TriggerEmergencyDenm ()
   geoArea.shape = CIRCULAR;
   m_denService.setGeoArea (geoArea);
 
-  trigger_retval = m_denService.appDENM_trigger (data, actionid);
-  if (trigger_retval == DENM_NO_ERROR)
+  try
     {
-      m_updateDenmEvent = Simulator::Schedule (
-          Seconds (0.1), &emergencyVehicleAlert::UpdateEmergencyDenm, this, actionid);
+      trigger_retval = m_denService.appDENM_trigger (data, actionid);
+      if (trigger_retval == DENM_NO_ERROR)
+        {
+          m_updateDenmEvent = Simulator::Schedule (
+              Seconds (0.1), &emergencyVehicleAlert::UpdateEmergencyDenm, this, actionid);
+        }
+      else
+        {
+          NS_LOG_ERROR ("DENM trigger failed with error: " << trigger_retval);
+          std::cout << "[Debug] DENM trigger failed with error: " << trigger_retval << std::endl;
+        }
     }
-  else
+  catch (const std::exception &e)
     {
-      std::cout << "[Debug] DENM trigger failed with error: " << trigger_retval << std::endl;
+      NS_LOG_ERROR ("Exception during DENM trigger: " << e.what ());
     }
 }
 
@@ -1144,18 +1585,46 @@ emergencyVehicleAlert::UpdateEmergencyDenm (DEN_ActionID_t actionID)
   denData data;
   denData::denDataSituation situation_data;
   DENBasicService_error_t update_retval;
-  int denm_veh_speed = m_client->TraCIAPI::vehicle.getSpeed (m_id);
-  if (denm_veh_speed + denm_veh_accel > denm_veh_min_speed)
+
+  int denm_veh_speed;
+  try
     {
-      m_client->TraCIAPI::vehicle.slowDown (m_id, denm_veh_speed + denm_veh_accel, 0.1);
+      denm_veh_speed = m_client->TraCIAPI::vehicle.getSpeed (m_id);
     }
-  else
+  catch (const std::exception &e)
     {
-      denm_veh_speed = denm_veh_max_speed;
-      m_client->TraCIAPI::vehicle.slowDown (m_id, denm_veh_speed, 0.5);
+      NS_LOG_WARN ("Failed to get speed for update: " << e.what ());
+      return;
     }
-  libsumo::TraCIPosition pos = m_client->TraCIAPI::vehicle.getPosition (m_id);
-  pos = m_client->TraCIAPI::simulation.convertXYtoLonLat (pos.x, pos.y);
+
+  try
+    {
+      if (denm_veh_speed + denm_veh_accel > denm_veh_min_speed)
+        {
+          m_client->TraCIAPI::vehicle.slowDown (m_id, denm_veh_speed + denm_veh_accel, 0.1);
+        }
+      else
+        {
+          denm_veh_speed = denm_veh_max_speed;
+          m_client->TraCIAPI::vehicle.slowDown (m_id, denm_veh_speed, 0.5);
+        }
+    }
+  catch (const std::exception &e)
+    {
+      NS_LOG_WARN ("Failed to adjust vehicle speed: " << e.what ());
+    }
+
+  libsumo::TraCIPosition pos;
+  try
+    {
+      pos = m_client->TraCIAPI::vehicle.getPosition (m_id);
+      pos = m_client->TraCIAPI::simulation.convertXYtoLonLat (pos.x, pos.y);
+    }
+  catch (const std::exception &e)
+    {
+      NS_LOG_WARN ("Failed to get position for DENM update: " << e.what ());
+      return;
+    }
 
   data.setDenmMandatoryFields (compute_timestampIts (m_real_time), pos.y, pos.x);
   situation_data.causeCode = 97;
@@ -1170,17 +1639,24 @@ emergencyVehicleAlert::UpdateEmergencyDenm (DEN_ActionID_t actionID)
   geoArea.shape = CIRCULAR;
   m_denService.setGeoArea (geoArea);
 
-  update_retval = m_denService.appDENM_update (data, actionID);
-  if (update_retval != DENM_NO_ERROR)
+  try
     {
-      NS_LOG_ERROR ("Failed to update DENM. Error code: " << update_retval);
-      std::cout << "[Debug] DENM update failed with error: " << update_retval << std::endl;
-      return;
-    }
+      update_retval = m_denService.appDENM_update (data, actionID);
+      if (update_retval != DENM_NO_ERROR)
+        {
+          NS_LOG_ERROR ("Failed to update DENM. Error code: " << update_retval);
+          std::cout << "[Debug] DENM update failed with error: " << update_retval << std::endl;
+          return;
+        }
 
-  // std::cout << "Vehicle " << m_id << " triggered emergency DENM." << std::endl;
-  m_updateDenmEvent = Simulator::Schedule (
-      Seconds (0.1), &emergencyVehicleAlert::UpdateEmergencyDenm, this, actionID);
+      // std::cout << "Vehicle " << m_id << " triggered emergency DENM." << std::endl;
+      m_updateDenmEvent = Simulator::Schedule (
+          Seconds (0.1), &emergencyVehicleAlert::UpdateEmergencyDenm, this, actionID);
+    }
+  catch (const std::exception &e)
+    {
+      NS_LOG_ERROR ("Exception during DENM update: " << e.what ());
+    }
 }
 
 void
@@ -1191,8 +1667,22 @@ emergencyVehicleAlert::RestoreSpeed (string senderVehicleId)
   normal.g = 225;
   normal.b = 255;
   normal.a = 255;
-  m_client->TraCIAPI::vehicle.setColor (m_id, normal);
-  m_client->TraCIAPI::vehicle.slowDown (m_id, m_max_speed, 5);
+  try
+    {
+      m_client->TraCIAPI::vehicle.setColor (m_id, normal);
+    }
+  catch (const std::exception &e)
+    {
+      NS_LOG_DEBUG ("Failed to set vehicle color: " << e.what ());
+    }
+  try
+    {
+      m_client->TraCIAPI::vehicle.slowDown (m_id, m_max_speed, 5);
+    }
+  catch (const std::exception &e)
+    {
+      NS_LOG_DEBUG ("Failed to restore speed: " << e.what ());
+    }
   m_monitored_vehicle_id = "";
 }
 
@@ -1409,37 +1899,64 @@ emergencyVehicleAlert::SwitchToMainRoad ()
 void
 emergencyVehicleAlert::monitorVehicleRoutePeriodic ()
 {
-  if (shouldEnterForkRoad == 1)
+  try
     {
-      SwitchToSideRoad ();
-    }
-  else if (shouldEnterForkRoad == 0)
-    {
-      SwitchToMainRoad ();
-    }
-  else if (shouldEnterForkRoad == 4)
-    {
-      SwitchToForkRoad ();
-    }
-  else if (shouldEnterForkRoad == 3)
-    {
-      std::string roadID = m_client->TraCIAPI::vehicle.getRoadID (m_id);
-      std::string targetEdge = "";
-      if (roadID == "E2")
+      if (shouldEnterForkRoad == 1)
         {
-          targetEdge = "E4";
+          SwitchToSideRoad ();
         }
-      else if (roadID == "E1")
+      else if (shouldEnterForkRoad == 0)
         {
-          targetEdge = "E6";
+          SwitchToMainRoad ();
         }
-      if (targetEdge != "")
+      else if (shouldEnterForkRoad == 4)
         {
-          m_client->TraCIAPI::vehicle.changeTarget (m_id, targetEdge);
-          shouldEnterForkRoad = 5;
+          SwitchToForkRoad ();
         }
-    }
-  Simulator::Schedule (Seconds (0.1), &emergencyVehicleAlert::monitorVehicleRoutePeriodic, this);
-}
+      else if (shouldEnterForkRoad == 3)
+        {
+          std::string roadID;
+          try
+            {
+              roadID = m_client->TraCIAPI::vehicle.getRoadID (m_id);
+            }
+          catch (const std::exception &e)
+            {
+              NS_LOG_DEBUG ("Vehicle "
+                            << m_id
+                            << " no longer exists in monitorVehicleRoutePeriodic: " << e.what ());
+              return;
+            }
 
+          std::string targetEdge = "";
+          if (roadID == "E2")
+            {
+              targetEdge = "E4";
+            }
+          else if (roadID == "E1")
+            {
+              targetEdge = "E6";
+            }
+          if (targetEdge != "")
+            {
+              try
+                {
+                  m_client->TraCIAPI::vehicle.changeTarget (m_id, targetEdge);
+                  shouldEnterForkRoad = 5;
+                }
+              catch (const std::exception &e)
+                {
+                  NS_LOG_DEBUG (
+                      "Failed to change target in monitorVehicleRoutePeriodic: " << e.what ());
+                }
+            }
+        }
+      Simulator::Schedule (Seconds (0.1), &emergencyVehicleAlert::monitorVehicleRoutePeriodic,
+                           this);
+    }
+  catch (const std::exception &e)
+    {
+      NS_LOG_ERROR ("Unexpected error in monitorVehicleRoutePeriodic: " << e.what ());
+    }
+}
 } // namespace ns3

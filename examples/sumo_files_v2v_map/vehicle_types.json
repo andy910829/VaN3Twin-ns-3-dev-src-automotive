@@ -3,28 +3,23 @@
     {
       "id": "veh0",
       "value": "High",
-      "reason": "\u4e3b\u8981\u9ad8\u50f9\u503c\u76ee\u6a19\uff0c\u4f4d\u65bc\u6700\u5916\u5074\u8eca\u9053 (Lane 0)\u3002\u653b\u64ca\u8005 veh1 \u7dca\u96a8\u5176\u5f8c\uff0c\u610f\u5716\u963b\u65b7\u5176 DENM \u8a0a\u606f\u3002\u5f8c\u65b9\u8ddf\u96a8 7 \u8f1b\u53d7\u5bb3\u8eca\u8f1b\uff0c\u5b83\u5011\u5728\u672a\u6536\u5230\u8b66\u5831\u4e0b\u5c07\u932f\u904e\u4ea4\u6d41\u9053\u3002"
+      "reason": "Primary target on Lane 0 leading to off-ramp, followed by attacker and 7 victims."
     },
     {
-      "id": "veh4",
+      "id": "veh1",
       "value": "High",
-      "reason": "\u6b21\u8981\u9ad8\u50f9\u503c\u76ee\u6a19\uff0c\u4f4d\u65bc\u53e6\u4e00\u5074\u5916\u5074\u8eca\u9053 (Lane 3)\u3002\u5f8c\u65b9\u8ddf\u96a8 5 \u8f1b\u53d7\u5bb3\u8eca\u8f1b\uff0c\u82e5 DENM \u88ab\u963b\u65b7\uff0c\u4ea6\u5c07\u932f\u904e\u4ea4\u6d41\u9053\u3002"
+      "reason": "Secondary target on Lane 3 leading to off-ramp, followed by 7 victims."
     },
     {
       "id": "veh2",
       "value": "Low",
-      "reason": "\u5167\u5074\u5c0d\u7167\u7d44\uff0c\u4f4d\u65bc Lane 1\u3002\u5f8c\u65b9\u8ddf\u96a8 5 \u8f1b\u53d7\u5bb3\u8eca\u8f1b\uff0c\u4e3b\u8981\u89c0\u5bdf\u8eca\u9053\u5207\u63db\u884c\u70ba\uff0c\u800c\u975e\u932f\u904e\u4ea4\u6d41\u9053\u6548\u61c9\u3002"
+      "reason": "Control group on Lane 1, lane-change only, minor impact."
     },
     {
       "id": "veh3",
       "value": "Low",
-      "reason": "\u5167\u5074\u5c0d\u7167\u7d44\uff0c\u4f4d\u65bc Lane 2\u3002\u5f8c\u65b9\u8ddf\u96a8 5 \u8f1b\u53d7\u5bb3\u8eca\u8f1b\uff0c\u4e3b\u8981\u89c0\u5bdf\u8eca\u9053\u5207\u63db\u884c\u70ba\uff0c\u800c\u975e\u932f\u904e\u4ea4\u6d41\u9053\u6548\u61c9\u3002"
+      "reason": "Control group on Lane 2, lane-change only, minor impact."
     }
   ],
-  "attacker_id": "veh1",
-  "attacker_tactical_positioning": {
-    "target_ev": "veh0",
-    "lane": "0",
-    "relative_position": "\u7d27\u968fveh0\u540e\u65b9\uff0c\u5728\u53d7\u5bb3\u8f66\u961f\u4e4b\u524d\uff0c\u5b9e\u73b0\u7269\u7406\u5bc4\u751f\u4e0eDENM\u963b\u65ad\u7684\u300e\u751c\u871c\u70b9\u300f\u3002"
-  }
+  "attacker_id": "veh4"
 }

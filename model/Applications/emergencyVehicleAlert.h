@@ -148,6 +148,7 @@ class emergencyVehicleAlert : public Application
      *
      */
     std::string sim_type;
+    int random_index;
     double attack_min_duration;
     double attack_max_duration;
     void SetMaxSpeed ();

@@ -115,6 +115,7 @@ main (int argc, char *argv[])
   std::string sim_type = "AI_mode";
   double attack_min_duration;
   double attack_max_duration;
+  int random_index=1;
 
   int numberOfNodes;
   uint32_t nodeCounter = 0;
@@ -162,6 +163,7 @@ main (int argc, char *argv[])
   CommandLine cmd;
 
   /* Cmd Line option for application */
+  cmd.AddValue ("randomIndex", "Random index for the random mode attack", random_index);
   cmd.AddValue ("epoch", "Epoch number", epoch);
   cmd.AddValue ("attack_max_duration", "Duration of the attack in seconds", attack_max_duration);
   cmd.AddValue ("attack_min_duration", "Minimum duration of the attack in seconds", attack_min_duration);
@@ -693,6 +695,7 @@ main (int argc, char *argv[])
   EmergencyVehicleAlertHelper.SetAttribute ("sim_type", StringValue (sim_type));
   EmergencyVehicleAlertHelper.SetAttribute ("attack_max_duration", DoubleValue (attack_max_duration));
   EmergencyVehicleAlertHelper.SetAttribute ("attack_min_duration", DoubleValue (attack_min_duration));
+  EmergencyVehicleAlertHelper.SetAttribute ("random_index", IntegerValue (random_index));
 
   /* callback function for node creation */
   int i = 0;
